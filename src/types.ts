@@ -12,6 +12,9 @@ export interface Announcement { id: string; title: string; content: string; publ
 export interface ChurchEvent { id: string; title: string; description: string; location: string; startsAt: string; endsAt: string | null; capacity: number | null; createdAt: string }
 export interface SavedReport { id: string; title: string; reportType: string; dateFrom: string | null; dateTo: string | null; parameters: Record<string, unknown>; generatedData: Record<string, unknown>; createdAt: string }
 export interface AuditLog { id: number; actorUserId: string | null; actorName: string; actorEmail: string; action: "INSERT" | "UPDATE" | "DELETE"; tableName: string; recordId: string | null; oldValues: Record<string, unknown> | null; newValues: Record<string, unknown> | null; createdAt: string }
+export type AccessRequestStatus = "Pending" | "Approved" | "Rejected";
+export interface AccessRequest { id:string; fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string; status:AccessRequestStatus; approvedRoleId:string|null; approvedRole:RoleName|null; approvedBy:string|null; approvedByName:string; approvedAt:string|null; createdAt:string }
+export interface AccessRequestInput { fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string }
 
 export type TransactionSource = "offerings" | "donations" | "expenses";
 export interface Transaction { id:string; source:TransactionSource; date:string; type:"Income"|"Expense"; account:string; category:string; description:string; vendor?:string; moneyIn:number; moneyOut:number; paymentMethod:string; reference:string; notes:string; specifiedDetails?:string; createdAt:string }

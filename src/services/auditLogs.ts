@@ -10,7 +10,7 @@ export type AuditLogFilters = {
 };
 
 export const auditModules = [
-  "accounts", "announcements", "attendance", "categories", "donations", "events",
+  "access_requests", "accounts", "announcements", "attendance", "categories", "donations", "events",
   "expenses", "members", "offerings", "payable_payments", "payables", "projects",
   "reports", "users",
 ] as const;

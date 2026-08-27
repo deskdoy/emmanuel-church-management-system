@@ -72,3 +72,30 @@ test("audit logs are Admin-only, filterable, and read-only", () => {
   assert.doesNotMatch(migration, /Pastor/);
   assert.match(migration, /revoke insert, update, delete, truncate on public\.audit_logs/);
 });
+
+test("public access requests and Admin approval workflow are secured", () => {
+  const route = read("src/auth/ProtectedRoute.tsx");
+  const requestForm = read("src/auth/RequestAccessForm.tsx");
+  const adminView = read("src/components/AccessRequestsView.tsx");
+  const service = read("src/services/accessRequests.ts");
+  const edgeFunction = read("supabase/functions/manage-access-request/index.ts");
+  const page = read("app/page.tsx");
+  const migration = read("supabase/migrations/20260827175035_add_access_request_workflow.sql");
+  assert.match(route, /Request Access/);
+  assert.match(route, /otp_expired/);
+  assert.match(requestForm, /suggestion; the Admin chooses the final role/i);
+  assert.match(page, /profile\?\.role === "Admin"[^\n]+Access Requests/);
+  assert.match(page, /view === "access-requests" && profile\?\.role === "Admin"/);
+  assert.match(adminView, /Select final role/);
+  assert.match(adminView, /Approve and send invitation/);
+  assert.match(service, /functions\.invoke\("manage-access-request"/);
+  assert.match(edgeFunction, /relationName\(profile\.roles\) !== "Admin"/);
+  assert.match(edgeFunction, /!body\.approvedRole/);
+  assert.match(edgeFunction, /auth\.admin\.deleteUser/);
+  assert.doesNotMatch(edgeFunction, /requested_role/);
+  assert.match(migration, /grant insert \(full_name, email, phone, requested_role, reason\)/);
+  assert.match(migration, /access_requests_admin_read/);
+  assert.doesNotMatch(migration, /grant (update|delete) on public\.access_requests/i);
+  assert.match(migration, /audit_access_requests/);
+  assert.match(migration, /p_approved_role text/);
+});

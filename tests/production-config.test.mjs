@@ -18,7 +18,7 @@ test("deployment inputs are committed", () => {
   const migrations = fs.readdirSync(new URL("../supabase/migrations", import.meta.url));
   assert.ok(migrations.length >= 3);
   const schema = migrations.map(name => read(`supabase/migrations/${name}`)).join("\n");
-  for (const table of ["users","roles","members","attendance","offerings","donations","expenses","projects","announcements","events","reports","audit_logs","payable_payments"]) {
+  for (const table of ["users","roles","members","attendance","offerings","donations","expenses","projects","announcements","events","reports","audit_logs","payable_payments","access_requests"]) {
     assert.match(schema, new RegExp(`create table public\\.${table}\\b`, "i"));
     assert.match(schema, new RegExp(`alter table public\\.${table} enable row level security`, "i"));
   }
@@ -28,4 +28,14 @@ test("legacy local persistence and Express entry point are absent", () => {
   assert.equal(fs.existsSync(new URL("../server.ts", import.meta.url)), false);
   const app = read("app/page.tsx");
   assert.doesNotMatch(app, /localStorage|sessionStorage|\/api\/cashflow/);
+});
+
+test("privileged invitation keys stay outside the Vite application", () => {
+  const frontend = ["app/page.tsx", ...fs.readdirSync(new URL("../src", import.meta.url), { recursive:true })
+    .filter(name => /\.(ts|tsx)$/.test(String(name))).map(name => `src/${String(name).replaceAll("\\", "/")}`)]
+    .map(read).join("\n");
+  assert.doesNotMatch(frontend, /SERVICE_ROLE|SECRET_KEY|serviceRoleKey/);
+  const edgeFunction = read("supabase/functions/manage-access-request/index.ts");
+  assert.match(edgeFunction, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(edgeFunction, /auth\.admin\.inviteUserByEmail/);
 });

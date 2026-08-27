@@ -20,6 +20,9 @@ Open **Supabase Dashboard → SQL Editor** and run these files in order:
 
 1. `supabase/migrations/20260827041350_initial_church_management_schema.sql`
 2. `supabase/migrations/20260827041433_security_policies_and_auditing.sql`
+3. `supabase/migrations/20260827163002_add_payable_payment_history.sql`
+4. `supabase/migrations/20260827164514_admin_only_audit_logs.sql`
+5. `supabase/migrations/20260827175035_add_access_request_workflow.sql`
 
 The migrations create all church-management tables, the six roles, reference accounts/categories, indexes, constraints, RLS policies, Auth profile synchronization, and audit triggers.
 
@@ -60,6 +63,8 @@ For Vercel:
 
 These two values are safe for the browser when RLS is enabled. Never add a Supabase secret/service-role key using a `VITE_` variable.
 
+The invitation service key belongs only to Supabase Edge Functions. Do not add it to `.env.local`, Vercel, or any `VITE_` variable.
+
 ## Step 4: Connect the GitHub repository to Vercel
 
 1. Push this repository to GitHub, including `package-lock.json`, `.env.example`, `vercel.json`, and `supabase/migrations/`.
@@ -81,12 +86,21 @@ After Vercel returns the production URL:
 
 1. In Supabase, open **Authentication → URL Configuration**.
 2. Set **Site URL** to the Vercel production URL.
-3. Add the production URL and Vercel preview pattern to allowed redirect URLs if email confirmations or password resets will be enabled.
-4. Sign in with the Admin account.
-5. Verify Dashboard, Transactions, Analytics, Reports, Accounts, Payables, CSV export, and PDF printing.
-6. Add a small transaction, refresh, and confirm it persists.
-7. Confirm a Viewer account cannot see financial write buttons.
-8. Check `public.audit_logs` after a write operation.
+3. Add `https://YOUR_DOMAIN/?invited=true` and the required preview URLs to **Allowed Redirect URLs**.
+4. In **Edge Functions → Secrets**, set `APP_URL=https://YOUR_DOMAIN`. `SUPABASE_URL`, the publishable/anon key, and the secret/service-role key are provided to hosted Supabase functions; never copy the secret into Vercel.
+5. Deploy the authenticated approval function:
+
+   ```bash
+   npx supabase functions deploy manage-access-request
+   ```
+
+6. Configure production SMTP in **Authentication → SMTP Settings**. The default Supabase mailer is for testing and may only deliver to authorized project-team addresses.
+7. Confirm **Email OTP Expiration** is appropriate for invitations. Expired invitation links show a dedicated message in the application; an administrator can issue a fresh invitation from **Authentication → Users** if one expires.
+8. Sign in with the Admin account.
+9. Verify Dashboard, Transactions, Analytics, Reports, Accounts, Payables, Access Requests, Audit Logs, CSV export, and PDF printing.
+10. Submit a public access request, approve it with a final role different from the suggestion, and complete the emailed password setup flow.
+11. Confirm non-Admin accounts cannot view access requests or invoke approval successfully.
+12. Check `public.audit_logs` for request creation, approval/rejection, and user role assignment.
 
 ## Production checklist
 
@@ -99,3 +113,6 @@ After Vercel returns the production URL:
 - Supabase Auth Site URL matches the Vercel domain.
 - Production and Preview environment variables are configured.
 - A custom SMTP provider is configured before public user onboarding.
+- `manage-access-request` is deployed with JWT verification enabled.
+- `APP_URL` is stored as a Supabase Edge Function secret and matches an allowed Auth redirect URL.
+- No public role can select, update, or delete `access_requests`.
