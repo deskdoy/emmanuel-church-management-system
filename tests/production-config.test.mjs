@@ -16,9 +16,9 @@ test("deployment inputs are committed", () => {
   assert.match(read(".env.example"), /VITE_SUPABASE_ANON_KEY=/);
   assert.equal(fs.existsSync(new URL("../vercel.json", import.meta.url)), true);
   const migrations = fs.readdirSync(new URL("../supabase/migrations", import.meta.url));
-  assert.equal(migrations.length, 2);
+  assert.ok(migrations.length >= 3);
   const schema = migrations.map(name => read(`supabase/migrations/${name}`)).join("\n");
-  for (const table of ["users","roles","members","attendance","offerings","donations","expenses","projects","announcements","events","reports","audit_logs"]) {
+  for (const table of ["users","roles","members","attendance","offerings","donations","expenses","projects","announcements","events","reports","audit_logs","payable_payments"]) {
     assert.match(schema, new RegExp(`create table public\\.${table}\\b`, "i"));
     assert.match(schema, new RegExp(`alter table public\\.${table} enable row level security`, "i"));
   }

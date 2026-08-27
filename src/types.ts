@@ -11,17 +11,21 @@ export interface Project { id: string; name: string; description: string; budget
 export interface Announcement { id: string; title: string; content: string; publishAt: string; expiresAt: string | null; isPublished: boolean; createdAt: string }
 export interface ChurchEvent { id: string; title: string; description: string; location: string; startsAt: string; endsAt: string | null; capacity: number | null; createdAt: string }
 export interface SavedReport { id: string; title: string; reportType: string; dateFrom: string | null; dateTo: string | null; parameters: Record<string, unknown>; generatedData: Record<string, unknown>; createdAt: string }
-export interface AuditLog { id: number; actorUserId: string | null; action: "INSERT" | "UPDATE" | "DELETE"; tableName: string; recordId: string | null; oldValues: Record<string, unknown> | null; newValues: Record<string, unknown> | null; createdAt: string }
+export interface AuditLog { id: number; actorUserId: string | null; actorName: string; actorEmail: string; action: "INSERT" | "UPDATE" | "DELETE"; tableName: string; recordId: string | null; oldValues: Record<string, unknown> | null; newValues: Record<string, unknown> | null; createdAt: string }
 
-export interface Transaction { id:string; date:string; type:"Income"|"Expense"; account:string; category:string; description:string; vendor?:string; moneyIn:number; moneyOut:number; paymentMethod:string; reference:string; notes:string; createdAt:string }
+export type TransactionSource = "offerings" | "donations" | "expenses";
+export interface Transaction { id:string; source:TransactionSource; date:string; type:"Income"|"Expense"; account:string; category:string; description:string; vendor?:string; moneyIn:number; moneyOut:number; paymentMethod:string; reference:string; notes:string; specifiedDetails?:string; createdAt:string }
 export interface Account { id:string; name:string; type:string; openingBalance:number; moneyIn:number; moneyOut:number; currentBalance:number; active:string }
 export interface Category { id:string; name:string; type:"Income"|"Expense"; group:string; active:string }
-export interface Payable { id:string; vendor:string; dueDate:string; category:string; categoryId:string; amount:number; amountPaid:number; balance:number; status:string; notes:string; createdAt:string }
+export interface PayablePayment { id:string; payableId:string; paymentDate:string; amount:number; paymentMethod:string; reference:string; notes:string; recordedBy:string|null; recordedByName:string; createdAt:string }
+export interface PayablePaymentInput { payableId:string; paymentDate:string; amount:number; paymentMethod:string; reference:string; notes:string }
+export interface Payable { id:string; vendor:string; dueDate:string; category:string; categoryId:string; amount:number; amountPaid:number; balance:number; status:string; notes:string; createdAt:string; payments:PayablePayment[] }
 export interface CashFlowData { transactions:Transaction[]; accounts:Account[]; categories:Category[]; payables:Payable[] }
 export interface AccountInput { id?:string; name:string; type:"Cash"|"Bank"|"Other"; openingBalance:number; active:boolean }
 
 export type CashFlowMutation =
   | { action:"addTransaction"; transaction:Transaction }
+  | { action:"updateTransaction"; transaction:Transaction }
   | { action:"addPayable"; payable:Payable }
-  | { action:"recordPayablePayment"; payableId:string; paymentAmount:number }
+  | { action:"recordPayablePayment"; payment:PayablePaymentInput }
   | { action:"saveAccount"; account:AccountInput };
