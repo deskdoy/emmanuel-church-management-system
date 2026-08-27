@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import type { Account, CashFlowData, Category, Payable, Transaction } from "../types";
+import type { Account, AccountInput, CashFlowData, Category, Payable, Transaction } from "../types";
 
 const client = () => { if (!supabase) throw new Error("Supabase is not configured."); return supabase; };
 const numeric = (value:unknown) => Number(value) || 0;
@@ -35,7 +35,7 @@ export async function addTransaction(transaction:Transaction,data:CashFlowData){
   if(!account||!category)throw new Error("The selected account or category is unavailable.");
   const recordedBy=await currentUserId();
   if(transaction.type==="Expense"){
-    const {error}=await db.from("expenses").insert({id:transaction.id,expense_date:transaction.date,vendor:"",description:transaction.description,amount:transaction.moneyOut,account_id:account.id,category_id:category.id,payment_method:transaction.paymentMethod,reference:transaction.reference,notes:transaction.notes,recorded_by:recordedBy});if(error)throw new Error(error.message);return;
+    const {error}=await db.from("expenses").insert({id:transaction.id,expense_date:transaction.date,vendor:transaction.vendor||"",description:transaction.description,amount:transaction.moneyOut,account_id:account.id,category_id:category.id,payment_method:transaction.paymentMethod,reference:transaction.reference,notes:transaction.notes,recorded_by:recordedBy});if(error)throw new Error(error.message);return;
   }
   const table=["Donations","Fundraising"].includes(transaction.category)?"donations":"offerings";
   const values={id:transaction.id,description:transaction.description,amount:transaction.moneyIn,account_id:account.id,category_id:category.id,payment_method:transaction.paymentMethod,reference:transaction.reference,notes:transaction.notes,recorded_by:recordedBy};
@@ -48,5 +48,31 @@ export async function addTransaction(transaction:Transaction,data:CashFlowData){
 export async function addPayable(payable:Payable){
   const recordedBy=await currentUserId();
   const {error}=await client().from("payables").insert({id:payable.id,vendor:payable.vendor,due_date:payable.dueDate,category_id:payable.categoryId,amount:payable.amount,amount_paid:payable.amountPaid,status:payable.status,notes:payable.notes,recorded_by:recordedBy});
+  if(error)throw new Error(error.message);
+}
+
+export async function recordPayablePayment(payableId:string,paymentAmount:number){
+  if(!Number.isFinite(paymentAmount)||paymentAmount<=0)throw new Error("Enter a valid payment amount.");
+  const db=client();
+  const {data:payable,error:readError}=await db.from("payables").select("amount,amount_paid").eq("id",payableId).single();
+  if(readError||!payable)throw new Error(readError?.message||"The payable is unavailable.");
+  const amount=numeric(payable.amount),amountPaid=numeric(payable.amount_paid),balance=amount-amountPaid;
+  if(paymentAmount>balance)throw new Error("The payment cannot exceed the remaining balance.");
+  const nextAmountPaid=amountPaid+paymentAmount,status=nextAmountPaid>=amount?"Paid":"Partially Paid";
+  const {error}=await db.from("payables").update({amount_paid:nextAmountPaid,status}).eq("id",payableId).select("id").single();
+  if(error)throw new Error(error.message);
+}
+
+const accountValues=(account:AccountInput)=>({name:account.name.trim(),account_type:account.type,opening_balance:account.openingBalance,is_active:account.active});
+
+export async function createAccount(account:AccountInput){
+  if(!account.name.trim())throw new Error("Account name is required.");
+  const {error}=await client().from("accounts").insert(accountValues(account)).select("id").single();
+  if(error)throw new Error(error.message);
+}
+
+export async function updateAccount(accountId:string,account:AccountInput){
+  if(!account.name.trim())throw new Error("Account name is required.");
+  const {error}=await client().from("accounts").update(accountValues(account)).eq("id",accountId).select("id").single();
   if(error)throw new Error(error.message);
 }
