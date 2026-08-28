@@ -23,8 +23,9 @@ Open **Supabase Dashboard → SQL Editor** and run these files in order:
 3. `supabase/migrations/20260827163002_add_payable_payment_history.sql`
 4. `supabase/migrations/20260827164514_admin_only_audit_logs.sql`
 5. `supabase/migrations/20260827175035_add_access_request_workflow.sql`
+6. `supabase/migrations/20260828114420_add_account_transfers.sql`
 
-The migrations create all church-management tables, the six roles, reference accounts/categories, indexes, constraints, RLS policies, Auth profile synchronization, and audit triggers.
+The migrations create all church-management tables, the six roles, reference accounts/categories, an append-only account-transfer ledger, indexes, constraints, RLS policies, Auth profile synchronization, and audit triggers.
 
 Next, create the first user in **Authentication → Users → Add user**. The trigger creates a Viewer profile automatically. Promote that one account to Admin in the SQL Editor:
 
@@ -97,7 +98,7 @@ After Vercel returns the production URL:
 6. Configure production SMTP in **Authentication → SMTP Settings**. The default Supabase mailer is for testing and may only deliver to authorized project-team addresses.
 7. Confirm **Email OTP Expiration** is appropriate for invitations. Expired invitation links show a dedicated message in the application; an administrator can issue a fresh invitation from **Authentication → Users** if one expires.
 8. Sign in with the Admin account.
-9. Verify Dashboard, Transactions, Analytics, Reports, Accounts, Payables, Access Requests, Audit Logs, CSV export, and PDF printing.
+9. Verify Dashboard, Transactions, account Transfers, Analytics, Reports, Accounts, Payables, Access Requests, Audit Logs, CSV export, and PDF printing.
 10. Submit a public access request, approve it with a final role different from the suggestion, and complete the emailed password setup flow.
 11. Confirm non-Admin accounts cannot view access requests or invoke approval successfully.
 12. Check `public.audit_logs` for request creation, approval/rejection, and user role assignment.
@@ -116,3 +117,4 @@ After Vercel returns the production URL:
 - `manage-access-request` is deployed with JWT verification enabled.
 - `APP_URL` is stored as a Supabase Edge Function secret and matches an allowed Auth redirect URL.
 - No public role can select, update, or delete `access_requests`.
+- Account transfers change only their source and destination account balances and remain excluded from income and expense totals.

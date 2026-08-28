@@ -23,6 +23,48 @@ test("financial navigation and entry actions are restored", () => {
   assert.match(page, /Edit transaction/);
   assert.match(page, /Specify details/);
   assert.match(page, /New Account/);
+  assert.match(page, /Transfer history/);
+  assert.match(page, /From account/);
+  assert.match(page, /To account/);
+});
+
+test("account transfers are append-only and isolated from income and expense reporting", () => {
+  const page = read("app/page.tsx");
+  const service = read("src/services/cashflow.ts");
+  const migration = read("supabase/migrations/20260828114420_add_account_transfers.sql");
+  assert.match(service, /from\("account_transfers"\)\.insert/);
+  assert.match(service, /currentBalance:openingBalance\+moneyIn-moneyOut\+transferIn-transferOut/);
+  assert.match(page, /data\.transactions\.reduce[\s\S]*moneyIn/);
+  assert.match(page, /Transfers move money between accounts only/);
+  assert.match(migration, /check \(from_account_id <> to_account_id\)/);
+  assert.match(migration, /amount numeric\(14,2\) not null check \(amount > 0\)/);
+  assert.match(migration, /grant select, insert on public\.account_transfers to authenticated/);
+  assert.doesNotMatch(migration, /grant[^;]*(update|delete)[^;]*account_transfers/i);
+  assert.doesNotMatch(migration, /alter policy|drop policy/);
+});
+
+test("password fields are hidden by default and have accessible visibility toggles", () => {
+  const field = read("src/auth/PasswordField.tsx");
+  const login = read("src/auth/ProtectedRoute.tsx");
+  const invitation = read("src/auth/InvitePasswordSetup.tsx");
+  assert.match(field, /useState\(false\)/);
+  assert.match(field, /visible \? "text" : "password"/);
+  assert.match(field, /aria-pressed=\{visible\}/);
+  assert.match(login, /PasswordField label="Password"/);
+  assert.match(invitation, /PasswordField label="New password"/);
+  assert.match(invitation, /PasswordField label="Confirm password"/);
+});
+
+test("mobile navigation uses a responsive drawer and overlay", () => {
+  const page = read("app/page.tsx");
+  const css = read("app/globals.css");
+  assert.match(page, /mobile-menu-button/);
+  assert.match(page, /sidebar-overlay/);
+  assert.match(page, /aria-controls="main-sidebar"/);
+  assert.match(page, /event\.key === "Escape"/);
+  assert.match(css, /sidebar\.mobile-drawer\.open/);
+  assert.match(css, /translateX\(-105%\)/);
+  assert.match(css, /@media\(max-width:720px\)/);
 });
 
 test("frontend permissions mirror existing financial roles", () => {

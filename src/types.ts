@@ -18,12 +18,14 @@ export interface AccessRequestInput { fullName:string; email:string; phone:strin
 
 export type TransactionSource = "offerings" | "donations" | "expenses";
 export interface Transaction { id:string; source:TransactionSource; date:string; type:"Income"|"Expense"; account:string; category:string; description:string; vendor?:string; moneyIn:number; moneyOut:number; paymentMethod:string; reference:string; notes:string; specifiedDetails?:string; createdAt:string }
-export interface Account { id:string; name:string; type:string; openingBalance:number; moneyIn:number; moneyOut:number; currentBalance:number; active:string }
+export interface Account { id:string; name:string; type:string; openingBalance:number; moneyIn:number; moneyOut:number; transferIn:number; transferOut:number; currentBalance:number; active:string }
+export interface AccountTransfer { id:string; date:string; fromAccountId:string; fromAccount:string; toAccountId:string; toAccount:string; amount:number; reference:string; notes:string; recordedBy:string; recordedByName:string; createdAt:string }
+export interface AccountTransferInput { id:string; date:string; fromAccountId:string; toAccountId:string; amount:number; reference:string; notes:string }
 export interface Category { id:string; name:string; type:"Income"|"Expense"; group:string; active:string }
 export interface PayablePayment { id:string; payableId:string; paymentDate:string; amount:number; paymentMethod:string; reference:string; notes:string; recordedBy:string|null; recordedByName:string; createdAt:string }
 export interface PayablePaymentInput { payableId:string; paymentDate:string; amount:number; paymentMethod:string; reference:string; notes:string }
 export interface Payable { id:string; vendor:string; dueDate:string; category:string; categoryId:string; amount:number; amountPaid:number; balance:number; status:string; notes:string; createdAt:string; payments:PayablePayment[] }
-export interface CashFlowData { transactions:Transaction[]; accounts:Account[]; categories:Category[]; payables:Payable[] }
+export interface CashFlowData { transactions:Transaction[]; transfers:AccountTransfer[]; accounts:Account[]; categories:Category[]; payables:Payable[] }
 export interface AccountInput { id?:string; name:string; type:"Cash"|"Bank"|"Other"; openingBalance:number; active:boolean }
 
 export type CashFlowMutation =
@@ -31,4 +33,5 @@ export type CashFlowMutation =
   | { action:"updateTransaction"; transaction:Transaction }
   | { action:"addPayable"; payable:Payable }
   | { action:"recordPayablePayment"; payment:PayablePaymentInput }
+  | { action:"addTransfer"; transfer:AccountTransferInput }
   | { action:"saveAccount"; account:AccountInput };

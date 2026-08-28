@@ -18,7 +18,7 @@ test("deployment inputs are committed", () => {
   const migrations = fs.readdirSync(new URL("../supabase/migrations", import.meta.url));
   assert.ok(migrations.length >= 3);
   const schema = migrations.map(name => read(`supabase/migrations/${name}`)).join("\n");
-  for (const table of ["users","roles","members","attendance","offerings","donations","expenses","projects","announcements","events","reports","audit_logs","payable_payments","access_requests"]) {
+  for (const table of ["users","roles","members","attendance","offerings","donations","expenses","projects","announcements","events","reports","audit_logs","payable_payments","access_requests","account_transfers"]) {
     assert.match(schema, new RegExp(`create table public\\.${table}\\b`, "i"));
     assert.match(schema, new RegExp(`alter table public\\.${table} enable row level security`, "i"));
   }
