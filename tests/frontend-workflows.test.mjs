@@ -7,7 +7,7 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 test("financial navigation and entry actions are restored", () => {
   const page = read("app/page.tsx");
   const nav = page.slice(page.indexOf("const navItems"), page.indexOf("const showFinanceNotice"));
-  const labels = ["Dashboard", "Transactions", "Payables", "Accounts", "Projects", "Reports", "Users", "Audit Logs", "Settings"];
+  const labels = ["Dashboard", "Transactions", "Payables", "Accounts", "Projects", "Reports", "Users", "Audit Logs", "Backup Center", "System Information", "Settings"];
   let previous = -1;
   for (const label of labels) {
     const position = nav.indexOf(`"${label}"`);

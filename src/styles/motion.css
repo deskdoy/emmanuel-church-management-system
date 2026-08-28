@@ -1,0 +1,23 @@
+@keyframes page-enter { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
+@keyframes modal-enter { from { opacity:0; transform:translateY(10px) scale(.985); } to { opacity:1; transform:none; } }
+@keyframes backdrop-enter { from { opacity:0; } to { opacity:1; } }
+@keyframes shimmer { from { transform:translateX(-110%); } to { transform:translateX(210%); } }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes toast-enter { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+
+.page-transition { animation:page-enter .24s var(--ease-out) both; }
+.metric-card,.dashboard-reporting-grid>.panel,.transaction-overview article { animation:page-enter .3s var(--ease-out) both; }
+.metric-card:nth-child(2),.transaction-overview article:nth-child(2) { animation-delay:35ms; }
+.metric-card:nth-child(3),.transaction-overview article:nth-child(3) { animation-delay:70ms; }
+.metric-card:nth-child(4) { animation-delay:105ms; }
+.metric-card:nth-child(5) { animation-delay:140ms; }
+.modal-backdrop { animation:backdrop-enter .16s ease both; }
+.modal { animation:modal-enter .2s var(--ease-out) both; }
+.toast { animation:toast-enter .2s var(--ease-out) both; }
+.button-loading i,.inline-spinner,.loading-orbit { animation:spin .75s linear infinite; }
+.skeleton-row>i,.skeleton-row b { position:relative; }
+.skeleton-row>i:after,.skeleton-row b:after { position:absolute; inset:0; transform:translateX(-110%); background:linear-gradient(90deg,transparent,rgba(255,255,255,.72),transparent); content:""; animation:shimmer 1.25s ease-in-out infinite; }
+
+@media(prefers-reduced-motion:reduce) {
+  *,*:before,*:after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; }
+}

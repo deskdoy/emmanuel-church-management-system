@@ -2,6 +2,8 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "../lib/supabase";
 import { PasswordField } from "./PasswordField";
+import { AuthShell } from "./AuthShell";
+import { ChurchBrand } from "../components/ui/ChurchBrand";
 
 export function InvitePasswordSetup() {
   const { signOut } = useAuth();
@@ -21,5 +23,5 @@ export function InvitePasswordSetup() {
     await signOut();
   };
 
-  return <main className="login-shell"><section className="login-card" aria-labelledby="setup-title"><div className="login-brand"><span className="brand-mark">E</span><div><b>Emmanuel Cash Flow</b><small>Invitation setup</small></div></div><p className="eyebrow">Invitation accepted</p><h1 id="setup-title">Set your password.</h1><p className="login-copy">Create a password to finish activating your approved account.</p>{error && <div className="form-error" role="alert">{error}</div>}<form className="login-form" onSubmit={submit}><PasswordField label="New password" name="password" autoComplete="new-password" minLength={8} required /><PasswordField label="Confirm password" name="confirmation" autoComplete="new-password" minLength={8} required /><button className="primary-button" disabled={saving}>{saving ? "Activating…" : "Set password"}</button></form></section></main>;
+  return <AuthShell context="Invitation-only access protects your church records."><section aria-labelledby="setup-title"><ChurchBrand compact/><p className="eyebrow">Invitation accepted</p><h1 id="setup-title">Set your password.</h1><p className="login-copy">Create a secure password to finish activating your approved account.</p>{error && <div className="form-error" role="alert">{error}</div>}<form className="login-form" onSubmit={submit}><PasswordField label="New password" name="password" autoComplete="new-password" minLength={8} required /><PasswordField label="Confirm password" name="confirmation" autoComplete="new-password" minLength={8} required /><p className="field-guidance">Use at least eight characters. A longer, unique password is recommended.</p><button className="primary-button" disabled={saving}>{saving?<span className="button-loading"><i/>Activating…</span>:"Set password"}</button></form></section></AuthShell>;
 }

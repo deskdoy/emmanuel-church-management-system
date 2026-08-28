@@ -107,6 +107,9 @@ After Vercel returns the production URL:
 15. Print each report to PDF and export it to CSV. Confirm the organization name, report title, and date range or **As of Date** appear in the output.
 16. Record or identify an internal transfer and confirm it changes only the two account balances; it must not change income, expense, net-funds, or cash-flow statement totals.
 17. Verify Dashboard current-month KPIs, six-month trend, expense breakdown, account balances, active-project count, and recent activity. Confirm non-Admin users do not see audit/user activity.
+18. As Admin, generate a small Backup Center export. Confirm the CSV and printable summary share the same Export ID, the Export History entry appears, and a `reports` audit event is present.
+19. Open System Information and confirm the application version, environment, database connection, and RLS-visible counts load without displaying credentials.
+20. Before removing any test data, download a backup and follow `/ADMIN_TEST_DATA_CLEANUP.md`. Never delete roles, the Admin account, categories, accounts, or audit history.
 
 ## Production checklist
 
@@ -125,3 +128,5 @@ After Vercel returns the production URL:
 - Account transfers change only their source and destination account balances and remain excluded from income and expense totals.
 - Leadership reports use shared, tested calculation functions outside the UI components and include print-friendly and CSV-ready metadata.
 - Dashboard audit summaries are requested only for Admin users and omit before/after audit payloads.
+- Backup Center and System Information are Admin-only, use the signed-in anon client under existing RLS, and never expose or require a service-role key.
+- Export files are generated in the browser and are not stored permanently; only non-sensitive export metadata and record counts are saved to `reports` for immutable auditing.
