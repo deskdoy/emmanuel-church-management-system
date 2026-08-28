@@ -7,7 +7,13 @@ export interface Attendance { id: string; memberId: string; eventId: string | nu
 export interface Offering { id: string; offeringDate: string; serviceName: string; description: string; amount: number; accountId: string; categoryId: string; paymentMethod: string; reference: string; notes: string; createdAt: string }
 export interface Donation { id: string; donationDate: string; donorMemberId: string | null; donorName: string; description: string; amount: number; accountId: string; categoryId: string; projectId: string | null; paymentMethod: string; reference: string; notes: string; createdAt: string }
 export interface Expense { id: string; expenseDate: string; vendor: string; description: string; amount: number; accountId: string; categoryId: string; projectId: string | null; paymentMethod: string; reference: string; notes: string; createdAt: string }
-export interface Project { id: string; name: string; description: string; budget: number; startDate: string | null; endDate: string | null; status: string; createdAt: string }
+export interface ProjectFundingProgress { goalAmount:number|null; currentAmountRaised:number|null; progressPercentage:number|null; targetDate:string|null }
+export interface Project { id: string; name: string; description: string; budget: number; startDate: string | null; endDate: string | null; status: string; createdAt: string; funding:ProjectFundingProgress }
+export interface ProjectInput { id?:string; name:string; description:string; budget:number; startDate:string|null; endDate:string|null; status:"Planned"|"Active"|"On Hold"|"Completed"|"Cancelled" }
+export interface ManagedUser extends AppUser { roleId:string }
+export interface UserAccessUpdate { userId:string; roleId:string; isActive:boolean }
+export interface DashboardAuditEvent { id:number; actorName:string; action:"INSERT"|"UPDATE"|"DELETE"; tableName:string; recordId:string|null; createdAt:string }
+export interface ProjectGoalView { projectId:string; projectName:string; goalAmount:number; amountRaised:number; progressPercentage:number; targetDate:string|null }
 export interface Announcement { id: string; title: string; content: string; publishAt: string; expiresAt: string | null; isPublished: boolean; createdAt: string }
 export interface ChurchEvent { id: string; title: string; description: string; location: string; startsAt: string; endsAt: string | null; capacity: number | null; createdAt: string }
 export interface SavedReport { id: string; title: string; reportType: string; dateFrom: string | null; dateTo: string | null; parameters: Record<string, unknown>; generatedData: Record<string, unknown>; createdAt: string }

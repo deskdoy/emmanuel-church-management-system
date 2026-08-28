@@ -7,15 +7,18 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 test("financial navigation and entry actions are restored", () => {
   const page = read("app/page.tsx");
   const nav = page.slice(page.indexOf("const navItems"), page.indexOf("const showFinanceNotice"));
-  const labels = ["Dashboard", "Transactions", "Income", "Expenses", "Payables", "Accounts", "Reports", "Analytics"];
+  const labels = ["Dashboard", "Transactions", "Payables", "Accounts", "Projects", "Reports", "Users", "Audit Logs", "Settings"];
   let previous = -1;
   for (const label of labels) {
     const position = nav.indexOf(`"${label}"`);
     assert.ok(position > previous, `${label} should appear in sidebar order`);
     previous = position;
   }
-  assert.match(page, /Record Income/);
-  assert.match(page, /Record Expense/);
+  assert.doesNotMatch(nav, /"Income"|"Expenses"|"Analytics"|"Access Requests"/);
+  assert.match(page, /New Transaction/);
+  assert.match(page, /Money In/);
+  assert.match(page, /Money Out/);
+  assert.match(page, /Logout/);
   assert.match(page, /Add Payable/);
   assert.match(page, /Record payment/);
   assert.match(page, /Payment history/);
@@ -31,11 +34,15 @@ test("financial navigation and entry actions are restored", () => {
 test("account transfers are append-only and isolated from income and expense reporting", () => {
   const page = read("app/page.tsx");
   const service = read("src/services/cashflow.ts");
+  const reporting = read("src/reporting/calculations.ts");
   const migration = read("supabase/migrations/20260828114420_add_account_transfers.sql");
   assert.match(service, /from\("account_transfers"\)\.insert/);
   assert.match(service, /currentBalance:openingBalance\+moneyIn-moneyOut\+transferIn-transferOut/);
   assert.match(page, /data\.transactions\.reduce[\s\S]*moneyIn/);
   assert.match(page, /Transfers move money between accounts only/);
+  assert.match(reporting, /const income=period\.filter\(row=>row\.type==="Income"\),expenses=period\.filter\(row=>row\.type==="Expense"\)/);
+  assert.match(reporting, /transferIn[\s\S]*transferOut[\s\S]*currentBalance/);
+  assert.doesNotMatch(reporting, /totalIncome[^;]*transfers|totalExpenses[^;]*transfers/);
   assert.match(migration, /check \(from_account_id <> to_account_id\)/);
   assert.match(migration, /amount numeric\(14,2\) not null check \(amount > 0\)/);
   assert.match(migration, /grant select, insert on public\.account_transfers to authenticated/);
@@ -126,8 +133,10 @@ test("public access requests and Admin approval workflow are secured", () => {
   assert.match(route, /Request Access/);
   assert.match(route, /otp_expired/);
   assert.match(requestForm, /suggestion; the Admin chooses the final role/i);
-  assert.match(page, /profile\?\.role === "Admin"[^\n]+Access Requests/);
-  assert.match(page, /view === "access-requests" && profile\?\.role === "Admin"/);
+  const usersView = read("src/components/UsersView.tsx");
+  assert.match(page, /profile\?\.role === "Admin"[^\n]+"Users"/);
+  assert.match(page, /view === "users" && profile\?\.role === "Admin"/);
+  assert.match(usersView, /<AccessRequestsView\/>/);
   assert.match(adminView, /Select final role/);
   assert.match(adminView, /Approve and send invitation/);
   assert.match(service, /functions\.invoke\("manage-access-request"/);

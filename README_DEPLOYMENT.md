@@ -98,10 +98,15 @@ After Vercel returns the production URL:
 6. Configure production SMTP in **Authentication → SMTP Settings**. The default Supabase mailer is for testing and may only deliver to authorized project-team addresses.
 7. Confirm **Email OTP Expiration** is appropriate for invitations. Expired invitation links show a dedicated message in the application; an administrator can issue a fresh invitation from **Authentication → Users** if one expires.
 8. Sign in with the Admin account.
-9. Verify Dashboard, Transactions, account Transfers, Analytics, Reports, Accounts, Payables, Access Requests, Audit Logs, CSV export, and PDF printing.
+9. Verify Dashboard, consolidated Transactions, Payables, Accounts, Projects, Reports/Analytics, Admin Users/Access Requests, Audit Logs, Settings, CSV export, and PDF printing.
 10. Submit a public access request, approve it with a final role different from the suggestion, and complete the emailed password setup flow.
 11. Confirm non-Admin accounts cannot view access requests or invoke approval successfully.
 12. Check `public.audit_logs` for request creation, approval/rejection, and user role assignment.
+13. As Admin, confirm another user's role/status can be changed, while your own Admin role and active status remain protected.
+14. In **Reports**, verify the Cash Flow Statement, Income vs Expense, Account Summary, and Payables reports with both monthly and custom ranges where available.
+15. Print each report to PDF and export it to CSV. Confirm the organization name, report title, and date range or **As of Date** appear in the output.
+16. Record or identify an internal transfer and confirm it changes only the two account balances; it must not change income, expense, net-funds, or cash-flow statement totals.
+17. Verify Dashboard current-month KPIs, six-month trend, expense breakdown, account balances, active-project count, and recent activity. Confirm non-Admin users do not see audit/user activity.
 
 ## Production checklist
 
@@ -118,3 +123,5 @@ After Vercel returns the production URL:
 - `APP_URL` is stored as a Supabase Edge Function secret and matches an allowed Auth redirect URL.
 - No public role can select, update, or delete `access_requests`.
 - Account transfers change only their source and destination account balances and remain excluded from income and expense totals.
+- Leadership reports use shared, tested calculation functions outside the UI components and include print-friendly and CSV-ready metadata.
+- Dashboard audit summaries are requested only for Admin users and omit before/after audit payloads.

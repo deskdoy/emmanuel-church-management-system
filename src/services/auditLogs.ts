@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import type { AppUser, AuditLog } from "../types";
+import type { AppUser, AuditLog, DashboardAuditEvent } from "../types";
 
 export type AuditLogFilters = {
   dateFrom: string;
@@ -10,7 +10,7 @@ export type AuditLogFilters = {
 };
 
 export const auditModules = [
-  "access_requests", "accounts", "announcements", "attendance", "categories", "donations", "events",
+  "access_requests", "account_transfers", "accounts", "announcements", "attendance", "categories", "donations", "events",
   "expenses", "members", "offerings", "payable_payments", "payables", "projects",
   "reports", "users",
 ] as const;
@@ -62,4 +62,14 @@ export async function loadAuditLogs(filters: AuditLogFilters): Promise<AuditLog[
       createdAt: row.created_at,
     };
   });
+}
+
+export async function loadDashboardAuditActivity(limit=30):Promise<DashboardAuditEvent[]> {
+  const {data,error}=await client().from("audit_logs")
+    .select("id,actor_user_id,action,table_name,record_id,created_at,users(full_name,email)")
+    .in("table_name",["offerings","donations","expenses","payable_payments","account_transfers","users","access_requests"])
+    .order("created_at",{ascending:false})
+    .limit(limit);
+  if(error)throw new Error(`Unable to load recent audit activity: ${error.message}`);
+  return(data||[]).map(row=>{const actor=relationUser(row.users);return{id:row.id,actorName:String(actor.full_name||actor.email||"Administrator"),action:row.action as DashboardAuditEvent["action"],tableName:row.table_name,recordId:row.record_id,createdAt:row.created_at};});
 }
