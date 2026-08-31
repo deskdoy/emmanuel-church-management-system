@@ -149,6 +149,86 @@ if (churchError || !church) {
     );
 }
 
+console.log(
+  "Creating Phase 8 Church Admin..."
+);
+
+
+const adminEmail =
+  `phase8-church-admin-${suffix}@example.com`;
+
+const adminPassword =
+  `Phase8Admin!${suffix}Secure123`;
+
+
+const { data: adminAuth, error: adminAuthError } =
+  await admin.auth.admin.createUser({
+    email: adminEmail,
+    password: adminPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: "Phase 8 Church Admin",
+    },
+  });
+
+
+if (adminAuthError || !adminAuth.user) {
+  throw adminAuthError ||
+    new Error(
+      "Unable to create church admin"
+    );
+}
+
+
+const adminUserId =
+  adminAuth.user.id;
+
+
+const { data: adminRole, error: adminRoleError } =
+  await admin
+    .from("roles")
+    .select("id")
+    .eq(
+      "name",
+      "Admin"
+    )
+    .single();
+
+
+if (adminRoleError || !adminRole) {
+  throw adminRoleError ||
+    new Error(
+      "Admin role not found"
+    );
+}
+
+
+await admin
+  .from("users")
+  .insert({
+    id: adminUserId,
+    email: adminEmail,
+    full_name: "Phase 8 Church Admin",
+    role_id: adminRole.id,
+    is_active: true,
+  });
+
+
+await admin
+  .from("church_memberships")
+  .insert({
+    church_id: church.id,
+    user_id: adminUserId,
+    role_id: adminRole.id,
+    status: "active",
+    joined_at: new Date().toISOString(),
+  });
+
+
+console.log(
+  "Church Admin created:",
+  adminEmail
+);
 
 console.log(
   "Creating setup progress..."
@@ -188,6 +268,12 @@ const runtime = {
     id: church.id,
     name: church.name,
     slug: church.slug,
+  },
+
+  churchAdmin: {
+    id: adminUserId,
+    email: adminEmail,
+    password: adminPassword,
   },
 
 };

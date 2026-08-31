@@ -15,12 +15,23 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const appUrl = Deno.env.get("APP_URL") || "";
 
-function allowedOrigin() {
-  try {
-    return new URL(appUrl).origin;
-  } catch {
-    return "";
-  }
+function allowedOrigins() {
+
+  const origins = [
+    appUrl,
+    "http://localhost:5173",
+  ];
+
+  return origins
+    .map(origin => {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean);
+
 }
 
 function response(
@@ -28,13 +39,21 @@ function response(
   body: Record<string, unknown>,
   status = 200
 ) {
-  const origin = request.headers.get("origin") || allowedOrigin();
+  const requestOrigin =
+  request.headers.get("origin") || "";
 
-  return Response.json(body, {
-    status,
-    headers: {
-      "Access-Control-Allow-Origin":
-        origin === allowedOrigin() ? origin : allowedOrigin(),
+const allowed =
+  allowedOrigins();
+
+
+return Response.json(body, {
+  status,
+  headers: {
+
+    "Access-Control-Allow-Origin":
+      allowed.includes(requestOrigin)
+        ? requestOrigin
+        : allowed[0],
       "Access-Control-Allow-Headers":
         "authorization, x-client-info, apikey, content-type",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -44,7 +63,7 @@ function response(
 }
 
 Deno.serve(async request => {
-  if (!supabaseUrl || !anonKey || !serviceRoleKey || !allowedOrigin()) {
+  if (!supabaseUrl || !anonKey || !serviceRoleKey || !allowedOrigins().length) {
     return response(
       request,
       { error: "Church invitation service is not configured." },
@@ -54,7 +73,10 @@ Deno.serve(async request => {
 
   const requestOrigin = request.headers.get("origin");
 
-  if (requestOrigin && requestOrigin !== allowedOrigin()) {
+  if (
+  requestOrigin &&
+  !allowedOrigins().includes(requestOrigin)
+) {
     return response(request, { error: "Origin is not allowed." }, 403);
   }
 
@@ -209,14 +231,34 @@ Deno.serve(async request => {
 }
 
 
-    await userClient
-      .from("church_invitations")
-      .update({
-        invited_user_id:
-          invitationData.user.id,
-        invited_at: new Date().toISOString(),
-      })
-      .eq("id", invitation.id);
+    const { error: updateError } =
+  await adminClient
+    .from("church_invitations")
+    .update({
+      invited_user_id:
+        invitationData.user.id,
+
+      invited_at:
+        new Date().toISOString(),
+    })
+    .eq(
+      "id",
+      invitation.id
+    );
+
+
+if (updateError) {
+
+  return response(
+    request,
+    {
+      error:
+        updateError.message,
+    },
+    500
+  );
+
+}
 
 
     return response(
