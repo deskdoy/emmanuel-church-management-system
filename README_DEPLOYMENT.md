@@ -1,6 +1,6 @@
 # Production Deployment: Supabase + Vercel
 
-This application deploys as a static React + Vite site on Vercel Free Tier. Supabase provides PostgreSQL, email/password authentication, role-based access control, and audit logging. No Express server is required.
+FAITHFUL STEWARD — Church Management & Financial Stewardship Platform — deploys as a static React + Vite site on Vercel Free Tier. Supabase provides PostgreSQL, email/password authentication, role-based access control, and audit logging. No Express server is required.
 
 ## Step 1: Create a Supabase project
 

@@ -9,8 +9,19 @@ const client = () => {
 };
 const relation = (value: unknown) => Array.isArray(value) ? value[0] : value;
 
+export async function resolveChurchWorkspace(slug:string):Promise<{id:string;name:string;slug:string}> {
+  const normalized=slug.trim().toLowerCase();
+  if(!normalized)throw new Error("Enter your church workspace.");
+  const {data,error}=await client().rpc("resolve_church_workspace",{p_slug:normalized});
+  if(error)throw new Error("The church workspace could not be verified.");
+  const church=Array.isArray(data)?data[0]:data;
+  if(!church)throw new Error("No active church matches that workspace.");
+  return{id:church.id,name:church.name,slug:church.slug};
+}
+
 export async function submitAccessRequest(input: AccessRequestInput) {
   const { error } = await client().from("access_requests").insert({
+    church_id: input.churchId,
     full_name: input.fullName.trim(),
     email: input.email.trim().toLowerCase(),
     phone: input.phone.trim() || null,
@@ -24,9 +35,10 @@ export async function submitAccessRequest(input: AccessRequestInput) {
   }
 }
 
-export async function loadAccessRequests(): Promise<AccessRequest[]> {
+export async function loadAccessRequests(churchId:string): Promise<AccessRequest[]> {
   const { data, error } = await client().from("access_requests")
-    .select("id,full_name,email,phone,requested_role,reason,status,approved_role,approved_by,approved_at,created_at,approved_role_data:roles!access_requests_approved_role_fkey(name),approver:users!access_requests_approved_by_fkey(full_name,email)")
+    .select("id,church_id,full_name,email,phone,requested_role,reason,status,approved_role,approved_by,approved_at,created_at,approved_role_data:roles!access_requests_approved_role_fkey(name),approver:users!access_requests_approved_by_fkey(full_name,email)")
+    .eq("church_id",churchId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Unable to load access requests: ${error.message}`);
   return (data || []).map(row => {
@@ -34,6 +46,7 @@ export async function loadAccessRequests(): Promise<AccessRequest[]> {
     const approver = relation(row.approver) as { full_name?: unknown; email?: unknown } | null;
     return {
       id: row.id,
+      churchId: row.church_id,
       fullName: row.full_name,
       email: row.email,
       phone: row.phone || "",
@@ -50,9 +63,9 @@ export async function loadAccessRequests(): Promise<AccessRequest[]> {
   });
 }
 
-export async function processAccessRequest(requestId: string, action: "approve" | "reject", approvedRole?: RoleName) {
+export async function processAccessRequest(churchId:string,requestId: string, action: "approve" | "reject", approvedRole?: RoleName) {
   const { data, error } = await client().functions.invoke("manage-access-request", {
-    body: { requestId, action, approvedRole },
+    body: { churchId, requestId, action, approvedRole },
   });
   if (error) {
     const context = "context" in error ? error.context : null;

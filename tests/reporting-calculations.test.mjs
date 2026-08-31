@@ -60,6 +60,6 @@ test("dashboard KPIs use the current month and current account balances",()=>{
 });
 
 test("CSV exports include leadership report metadata",()=>{
-  const csv=buildReportCsv({organization:"Emmanuel Cash Flow",title:"Cash Flow Statement",scopeLabel:"January 1–31, 2026",headers:["Item","Amount"],rows:[["Ending Balance",2350]],filename:"report.csv"});
-  assert.match(csv,/Emmanuel Cash Flow/);assert.match(csv,/Cash Flow Statement/);assert.match(csv,/January 1–31, 2026/);assert.match(csv,/Ending Balance/);
+  const csv=buildReportCsv({organization:"FAITHFUL STEWARD | Church Management & Financial Stewardship Platform",title:"Cash Flow Statement",scopeLabel:"January 1–31, 2026",headers:["Item","Amount"],rows:[["Ending Balance",2350]],filename:"report.csv"});
+  assert.match(csv,/FAITHFUL STEWARD/);assert.match(csv,/Cash Flow Statement/);assert.match(csv,/January 1–31, 2026/);assert.match(csv,/Ending Balance/);
 });

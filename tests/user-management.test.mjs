@@ -6,8 +6,8 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 
 test("Users module is Admin-only and never deletes users", () => {
   const page=read("app/page.tsx"),view=read("src/components/UsersView.tsx"),service=read("src/services/users.ts");
-  assert.match(page,/view === "users" && profile\?\.role === "Admin"/);
-  assert.match(page,/profile\?\.role === "Admin"[^\n]+"Users"/);
+  assert.match(page,/view === "users" && isChurchAdmin/);
+  assert.match(page,/isChurchAdmin[^\n]+"Users"/);
   assert.match(view,/Users are never deleted/);
   assert.doesNotMatch(service,/\.delete\(/);
   assert.doesNotMatch(view,/Delete user|Remove user/);
@@ -18,18 +18,20 @@ test("self-demotion and self-disable are rejected in UI and service", () => {
   assert.match(view,/const self=user\.id===currentUserId/);
   assert.match(view,/disabled=\{self\|\|!!savingId\}/);
   assert.match(service,/update\.userId===authData\.user\.id&&roleResult\.data\.name!=="Admin"/);
-  assert.match(service,/You cannot remove your own Admin role/);
+  assert.match(service,/You cannot remove your own Church Admin role/);
   assert.match(service,/update\.userId===authData\.user\.id&&!update\.isActive/);
-  assert.match(service,/You cannot disable your own account/);
+  assert.match(service,/You cannot deactivate your own church membership/);
 });
 
-test("user access updates rely on existing users and roles tables", () => {
-  const service=read("src/services/users.ts"),security=read("supabase/migrations/20260827041433_security_policies_and_auditing.sql");
-  assert.match(service,/from\("users"\)\.update\(\{role_id:update\.roleId,is_active:update\.isActive\}\)/);
+test("user access updates are church-membership based and server authorized", () => {
+  const service=read("src/services/users.ts"),migration=read("supabase/migrations/20260829062622_phase_5d_stage4_membership_management.sql");
+  assert.match(service,/from\("church_memberships"\)/);
   assert.match(service,/from\("roles"\)\.select/);
-  assert.doesNotMatch(service,/service_role|functions\.invoke|auth\.admin/);
-  assert.match(security,/create policy users_admin_update/);
-  assert.match(security,/create trigger audit_users/);
+  assert.match(service,/rpc\("update_church_membership_access"/);
+  assert.doesNotMatch(service,/from\("users"\)\.update|service_role|auth\.admin/);
+  assert.match(migration,/private\.has_church_role\(p_church_id,array\['Admin'\]\)/);
+  assert.match(migration,/Every church must retain at least one active Church Admin/);
+  assert.doesNotMatch(migration,/create policy|alter policy|drop policy/);
 });
 
 test("Projects module is structured for future fundraising progress", () => {

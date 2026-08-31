@@ -5,10 +5,12 @@ import test from "node:test";
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
 
 test("church branding and professional authentication welcome are present",()=>{
-  const shell=read("src/auth/AuthShell.tsx"),brand=read("src/components/ui/ChurchBrand.tsx"),login=read("src/auth/ProtectedRoute.tsx");
-  assert.match(brand,/Church logo placeholder/);
-  assert.match(brand,/Emmanuel Church/);
-  assert.match(shell,/Faithful finances/);
+  const shell=read("src/auth/AuthShell.tsx"),brand=read("src/components/ui/ChurchBrand.tsx"),identity=read("src/branding.ts"),login=read("src/auth/ProtectedRoute.tsx");
+  assert.match(brand,/Faithful Steward logo placeholder/);
+  assert.match(brand,/BRAND\.productName/);
+  assert.match(identity,/productName: "FAITHFUL STEWARD"/);
+  assert.match(identity,/subtitle: "Church Management & Financial Stewardship Platform"/);
+  assert.match(shell,/Steward faithfully/);
   assert.match(shell,/Stewardship with clarity/);
   assert.match(login,/<AuthShell>/);
 });
@@ -42,7 +44,7 @@ test("first-use loading and empty states are reusable",()=>{
   assert.match(dashboard,/LoadingSkeleton/);
   assert.match(dashboard,/Your financial story starts here/);
   assert.match(page,/Set up your first account/);
-  assert.match(users,/No approved users yet/);
+  assert.match(users,/No church members yet/);
 });
 
 test("print reports remain isolated from interactive UI",()=>{

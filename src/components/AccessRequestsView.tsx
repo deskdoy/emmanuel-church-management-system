@@ -6,7 +6,7 @@ import { LoadingSkeleton } from "./ui/LoadingSkeleton";
 
 const timestamp = (value:string) => new Intl.DateTimeFormat("en-PH", { dateStyle:"medium", timeStyle:"short" }).format(new Date(value));
 
-export function AccessRequestsView() {
+export function AccessRequestsView({churchId}:{churchId:string}) {
   const [requests,setRequests]=useState<AccessRequest[]>([]);
   const [status,setStatus]=useState<AccessRequestStatus>("Pending");
   const [approval,setApproval]=useState<AccessRequest|null>(null);
@@ -17,21 +17,21 @@ export function AccessRequestsView() {
   const [decisionError,setDecisionError]=useState("");
   const [notice,setNotice]=useState("");
 
-  const refresh=useCallback(async()=>{setLoading(true);setError("");try{setRequests(await loadAccessRequests());}catch(cause){setError(cause instanceof Error?cause.message:"Unable to load access requests.");}finally{setLoading(false);}},[]);
+  const refresh=useCallback(async()=>{setLoading(true);setError("");try{setRequests(await loadAccessRequests(churchId));}catch(cause){setError(cause instanceof Error?cause.message:"Unable to load access requests.");}finally{setLoading(false);}},[churchId]);
   useEffect(()=>{queueMicrotask(()=>void refresh());},[refresh]);
   const visible=useMemo(()=>requests.filter(request=>request.status===status),[requests,status]);
 
   const approve=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault(); if(!approval||!finalRole){setError("Select the final approved role.");return;}
     setProcessingId(approval.id);setDecisionError("");setError("");setNotice("");
-    try{const message=await processAccessRequest(approval.id,"approve",finalRole);setNotice(message);setApproval(null);setFinalRole("");await refresh();}
+    try{const message=await processAccessRequest(churchId,approval.id,"approve",finalRole);setNotice(message);setApproval(null);setFinalRole("");await refresh();}
     catch(cause){setDecisionError(cause instanceof Error?cause.message:"Unable to approve this request.");}
     finally{setProcessingId("");}
   };
   const reject=async(request:AccessRequest)=>{
     if(!window.confirm(`Reject the access request from ${request.fullName}?`))return;
     setProcessingId(request.id);setError("");setNotice("");
-    try{const message=await processAccessRequest(request.id,"reject");setNotice(message);await refresh();}
+    try{const message=await processAccessRequest(churchId,request.id,"reject");setNotice(message);await refresh();}
     catch(cause){setError(cause instanceof Error?cause.message:"Unable to reject this request.");}
     finally{setProcessingId("");}
   };

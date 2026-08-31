@@ -1,6 +1,6 @@
 # Safe Admin Test-Data Cleanup
 
-Use this procedure only after deployment validation and only with an authorized database administrator. Emmanuel Cash Flow intentionally provides no one-click delete button.
+Use this procedure only after deployment validation and only with an authorized database administrator. FAITHFUL STEWARD intentionally provides no one-click delete button.
 
 ## Required safeguards
 

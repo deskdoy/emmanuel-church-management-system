@@ -8,13 +8,42 @@ import { UserProfileIndicator } from "./ui/UserProfileIndicator";
 
 type Draft={roleId:string;isActive:boolean};
 
-export function UsersView({currentUserId}:{currentUserId:string}) {
+export function UsersView({churchId,currentUserId,onAuthorizationChanged}:{churchId:string;currentUserId:string;onAuthorizationChanged:()=>Promise<void>}) {
   const [tab,setTab]=useState<"users"|"requests">("users"),[users,setUsers]=useState<ManagedUser[]>([]),[roles,setRoles]=useState<Role[]>([]);
   const [drafts,setDrafts]=useState<Record<string,Draft>>({}),[loading,setLoading]=useState(true),[savingId,setSavingId]=useState("");
   const [error,setError]=useState(""),[notice,setNotice]=useState("");
-  const refresh=useCallback(async()=>{setLoading(true);setError("");try{const next=await loadManagedUsers();setUsers(next.users);setRoles(next.roles);setDrafts(Object.fromEntries(next.users.map(user=>[user.id,{roleId:user.roleId,isActive:user.isActive}])));}catch(cause){setError(cause instanceof Error?cause.message:"Unable to load users.");}finally{setLoading(false);}},[]);
+  const refresh=useCallback(async()=>{
+    setLoading(true);setError("");
+    try{
+      const next=await loadManagedUsers(churchId);
+      setUsers(next.users);setRoles(next.roles);
+      setDrafts(Object.fromEntries(next.users.map(user=>[user.id,{roleId:user.roleId,isActive:user.isActive}])));
+    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to load church members.");}
+    finally{setLoading(false);}
+  },[churchId]);
   useEffect(()=>{queueMicrotask(()=>void refresh());},[refresh]);
   const changed=useMemo(()=>new Set(users.filter(user=>{const draft=drafts[user.id];return draft&&(draft.roleId!==user.roleId||draft.isActive!==user.isActive);}).map(user=>user.id)),[drafts,users]);
-  const save=async(user:ManagedUser)=>{const draft=drafts[user.id];if(!draft)return;setSavingId(user.id);setError("");setNotice("");try{await updateUserAccess({userId:user.id,...draft});setNotice(`${user.fullName||user.email} access updated.`);await refresh();window.setTimeout(()=>setNotice(""),2500);}catch(cause){setError(cause instanceof Error?cause.message:"Unable to update this user.");}finally{setSavingId("");}};
-  return <section className="users-module"><div className="module-tabs user-module-tabs" aria-label="User administration"><button className={tab==="users"?"active":""} onClick={()=>setTab("users")}>Users <span>{users.length}</span></button><button className={tab==="requests"?"active":""} onClick={()=>setTab("requests")}>Access Requests</button></div>{tab==="requests"?<AccessRequestsView/>:<section className="panel table-panel users-panel"><div className="panel-head"><div><p className="eyebrow">Admin controls</p><h2>People and permissions</h2><p className="section-copy">Manage approved accounts while keeping financial history connected.</p></div><span className="period-button">{users.length} users</span></div><p className="audit-note">Role and status changes are written to the immutable audit log. Users are never deleted so financial history remains connected.</p>{notice&&<div className="form-success access-message" role="status">{notice}</div>}{error&&<div className="error-banner access-message" role="alert"><span>{error}</span><button onClick={()=>void refresh()}>Try again</button></div>}{loading?<div className="users-loading"><LoadingSkeleton rows={5} label="Loading secured user profiles and roles"/></div>:<div className="table-wrap users-table responsive-table"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>{users.map(user=>{const self=user.id===currentUserId,draft=drafts[user.id]||{roleId:user.roleId,isActive:user.isActive};return <tr key={user.id}><td data-label="Name"><UserProfileIndicator name={user.fullName||"Unnamed user"} email={user.email} role={user.role} compact/>{self&&<small>Current Admin</small>}</td><td data-label="Email">{user.email}</td><td data-label="Role"><select aria-label={`Role for ${user.fullName||user.email}`} value={draft.roleId} disabled={self||!!savingId} onChange={event=>setDrafts(current=>({...current,[user.id]:{...draft,roleId:event.target.value}}))}>{roles.map(role=><option key={role.id} value={role.id}>{role.name}</option>)}</select></td><td data-label="Status"><select aria-label={`Status for ${user.fullName||user.email}`} value={draft.isActive?"active":"inactive"} disabled={self||!!savingId} onChange={event=>setDrafts(current=>({...current,[user.id]:{...draft,isActive:event.target.value==="active"}}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></td><td data-label="Action">{self?<span className="self-protection">Protected</span>:<button className="table-action" disabled={!changed.has(user.id)||!!savingId} onClick={()=>void save(user)}>{savingId===user.id?<span className="button-loading"><i/>Saving…</span>:"Save changes"}</button>}</td></tr>;})}{!users.length&&<tr><td colSpan={5} className="blank-row"><EmptyState compact title="No approved users yet" description="Approved access requests and invited church staff will appear here."/></td></tr>}</tbody></table></div>}</section>}</section>;
+  const save=async(user:ManagedUser)=>{
+    const draft=drafts[user.id];if(!draft)return;
+    setSavingId(user.id);setError("");setNotice("");
+    try{
+      await updateUserAccess(churchId,{membershipId:user.membershipId,userId:user.id,...draft});
+      setNotice(`${user.fullName||user.email} church access updated.`);
+      await Promise.all([refresh(),onAuthorizationChanged()]);
+      window.setTimeout(()=>setNotice(""),2500);
+    }catch(cause){setError(cause instanceof Error?cause.message:"Unable to update this membership.");}
+    finally{setSavingId("");}
+  };
+  return <section className="users-module">
+    <div className="module-tabs user-module-tabs" aria-label="User administration"><button className={tab==="users"?"active":""} onClick={()=>setTab("users")}>Users <span>{users.length}</span></button><button className={tab==="requests"?"active":""} onClick={()=>setTab("requests")}>Access Requests</button></div>
+    {tab==="requests"?<AccessRequestsView churchId={churchId}/>:<section className="panel table-panel users-panel">
+      <div className="panel-head"><div><p className="eyebrow">Church Admin controls</p><h2>People and permissions</h2><p className="section-copy">Manage membership in this church while keeping financial history connected.</p></div><span className="period-button">{users.length} members</span></div>
+      <p className="audit-note">Church role and membership status changes are written to the immutable audit log. Users are never deleted so financial history remains connected.</p>
+      {notice&&<div className="form-success access-message" role="status">{notice}</div>}{error&&<div className="error-banner access-message" role="alert"><span>{error}</span><button onClick={()=>void refresh()}>Try again</button></div>}
+      {loading?<div className="users-loading"><LoadingSkeleton rows={5} label="Loading secured church memberships and roles"/></div>:<div className="table-wrap users-table responsive-table"><table><thead><tr><th>Name</th><th>Email</th><th>Church role</th><th>Membership</th><th>Action</th></tr></thead><tbody>{users.map(user=>{
+        const self=user.id===currentUserId,draft=drafts[user.id]||{roleId:user.roleId,isActive:user.isActive};
+        return <tr key={user.membershipId}><td data-label="Name"><UserProfileIndicator name={user.fullName||"Unnamed user"} email={user.email} role={user.role} compact/>{self&&<small>Current Church Admin</small>}</td><td data-label="Email">{user.email}</td><td data-label="Church role"><select aria-label={`Role for ${user.fullName||user.email}`} value={draft.roleId} disabled={self||!!savingId} onChange={event=>setDrafts(current=>({...current,[user.id]:{...draft,roleId:event.target.value}}))}>{roles.map(role=><option key={role.id} value={role.id}>{role.name==="Admin"?"Church Admin":role.name}</option>)}</select></td><td data-label="Membership"><select aria-label={`Status for ${user.fullName||user.email}`} value={draft.isActive?"active":"inactive"} disabled={self||!!savingId} onChange={event=>setDrafts(current=>({...current,[user.id]:{...draft,isActive:event.target.value==="active"}}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></td><td data-label="Action">{self?<span className="self-protection">Protected</span>:<button className="table-action" disabled={!changed.has(user.id)||!!savingId} onClick={()=>void save(user)}>{savingId===user.id?<span className="button-loading"><i/>Saving…</span>:"Save changes"}</button>}</td></tr>;
+      })}{!users.length&&<tr><td colSpan={5} className="blank-row"><EmptyState compact title="No church members yet" description="Approved access requests and invited church staff will appear here."/></td></tr>}</tbody></table></div>}
+    </section>}
+  </section>;
 }

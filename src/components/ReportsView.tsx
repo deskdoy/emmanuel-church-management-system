@@ -3,16 +3,17 @@ import { buildAccountSummaries, buildCashFlowStatement, buildExpenseCategoryBrea
 import { downloadReportCsv, type CsvExport } from "../reporting/exportCsv";
 import type { CashFlowData } from "../types";
 import { AppIcon } from "./ui/AppIcon";
+import { BRAND, BRAND_EXPORT_IDENTITY } from "../branding";
 
 type ReportType="cash-flow"|"income-expense"|"accounts"|"payables"|"analytics";
-const organization="Emmanuel Cash Flow";
+const organization=BRAND_EXPORT_IDENTITY;
 const localDate=(date=new Date())=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 const peso=(value:number)=>new Intl.NumberFormat("en-PH",{style:"currency",currency:"PHP"}).format(value||0);
 const dateLabel=(value:string)=>new Intl.DateTimeFormat("en-PH",{month:"long",day:"numeric",year:"numeric"}).format(new Date(`${value}T00:00:00`));
 const titleFor:Record<ReportType,string>={"cash-flow":"Cash Flow Statement","income-expense":"Income vs Expense Report",accounts:"Account Summary Report",payables:"Payables Report",analytics:"Financial Analytics"};
 
 function ReportHeader({title,scope}:{title:string;scope:string}) {
-  return <><div className="report-brand"><span className="brand-mark">E</span><div><h2>{organization}</h2><p>Church leadership financial reporting</p></div></div><div className="leadership-report-title"><p className="eyebrow">Leadership report</p><h3>{title}</h3><span>{scope}</span></div></>;
+  return <><div className="report-brand"><span className="brand-mark report-brand-monogram">{BRAND.monogram}</span><div><h2>{BRAND.productName}</h2><p>{BRAND.subtitle}</p></div></div><div className="leadership-report-title"><p className="eyebrow">Leadership report</p><h3>{title}</h3><span>{scope}</span></div></>;
 }
 
 function CashFlowReport({data,range,scope}:{data:CashFlowData;range:DateRange;scope:string}) {

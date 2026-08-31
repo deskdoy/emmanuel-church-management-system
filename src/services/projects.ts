@@ -8,9 +8,10 @@ const client = () => {
 
 const numeric = (value:unknown) => Number(value) || 0;
 
-export async function loadProjects():Promise<Project[]> {
+export async function loadProjects(churchId:string):Promise<Project[]> {
   const { data, error } = await client().from("projects")
     .select("id,name,description,budget,start_date,end_date,status,created_at")
+    .eq("church_id",churchId)
     .order("created_at", { ascending:false });
   if (error) throw new Error(`Unable to load projects: ${error.message}`);
   return (data || []).map(row => ({
@@ -36,18 +37,18 @@ const values = (project:ProjectInput) => ({
   status:project.status,
 });
 
-export async function saveProject(project:ProjectInput) {
+export async function saveProject(churchId:string,project:ProjectInput) {
   if (!project.name.trim()) throw new Error("Project name is required.");
   if (!Number.isFinite(project.budget) || project.budget < 0) throw new Error("Enter a valid project budget.");
   if (project.startDate && project.endDate && project.endDate < project.startDate) throw new Error("Target date must be on or after the start date.");
   const db=client();
   if (project.id) {
-    const { error } = await db.from("projects").update(values(project)).eq("id",project.id).select("id").single();
+    const { error } = await db.from("projects").update(values(project)).eq("id",project.id).eq("church_id",churchId).select("id").single();
     if (error) throw new Error(error.message);
     return;
   }
   const { data:userData,error:userError }=await db.auth.getUser();
   if(userError||!userData.user)throw new Error(userError?.message||"Your session has expired.");
-  const { error } = await db.from("projects").insert({...values(project),created_by:userData.user.id}).select("id").single();
+  const { error } = await db.from("projects").insert({...values(project),church_id:churchId,created_by:userData.user.id}).select("id").single();
   if (error) throw new Error(error.message);
 }

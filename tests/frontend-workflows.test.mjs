@@ -76,11 +76,15 @@ test("mobile navigation uses a responsive drawer and overlay", () => {
 
 test("frontend permissions mirror existing financial roles", () => {
   const page = read("app/page.tsx");
-  assert.match(page, /\["Admin", "Treasurer", "Encoder"\]\.includes\(profile\.role\)/);
-  assert.match(page, /\["Admin", "Treasurer"\]\.includes\(profile\.role\)/);
+  const permissions = read("src/tenancy/permissions.ts");
+  assert.match(page, /hasChurchRole\(activeRole,financeWriterRoles\)/);
+  assert.match(page, /hasChurchRole\(activeRole,accountManagerRoles\)/);
+  assert.match(permissions, /\["Admin","Treasurer","Encoder"\]/);
+  assert.match(permissions, /\["Admin","Treasurer"\]/);
+  assert.doesNotMatch(page, /profile\?*\.role|profile\.role/);
   assert.match(page, /Read-only access/);
-  assert.match(page, /only Admin, Treasurer, and Encoder accounts can create or update/);
-  assert.match(page, /only Admin and Treasurer accounts can manage accounts/);
+  assert.match(page, /only Church Admin, Treasurer, and Encoder accounts can create or update/);
+  assert.match(page, /only Church Admin and Treasurer accounts can manage accounts/);
 });
 
 test("restored workflows use Supabase services without policy or auth changes", () => {
@@ -109,8 +113,8 @@ test("audit logs are Admin-only, filterable, and read-only", () => {
   const view = read("src/components/AuditLogsView.tsx");
   const service = read("src/services/auditLogs.ts");
   const migration = read("supabase/migrations/20260827164514_admin_only_audit_logs.sql");
-  assert.match(page, /profile\?\.role === "Admin"[^\n]+Audit Logs/);
-  assert.match(page, /view === "audit" && profile\?\.role === "Admin"/);
+  assert.match(page, /isChurchAdmin[^\n]+Audit Logs/);
+  assert.match(page, /view === "audit" && isChurchAdmin/);
   for (const label of ["Start date", "End date", "User", "Action", "Module", "Timestamp", "Record affected", "Before values", "After values"]) assert.match(view, new RegExp(label));
   assert.match(service, /from\("audit_logs"\)/);
   assert.match(service, /\.gte\("created_at"/);
@@ -132,15 +136,16 @@ test("public access requests and Admin approval workflow are secured", () => {
   const migration = read("supabase/migrations/20260827175035_add_access_request_workflow.sql");
   assert.match(route, /Request Access/);
   assert.match(route, /otp_expired/);
-  assert.match(requestForm, /suggestion; the Admin chooses the final role/i);
+  assert.match(requestForm, /suggestion; the Church Admin chooses the final role/i);
   const usersView = read("src/components/UsersView.tsx");
-  assert.match(page, /profile\?\.role === "Admin"[^\n]+"Users"/);
-  assert.match(page, /view === "users" && profile\?\.role === "Admin"/);
-  assert.match(usersView, /<AccessRequestsView\/>/);
+  assert.match(page, /isChurchAdmin[^\n]+"Users"/);
+  assert.match(page, /view === "users" && isChurchAdmin/);
+  assert.match(usersView, /<AccessRequestsView churchId=\{churchId\}\/>/);
   assert.match(adminView, /Select final role/);
   assert.match(adminView, /Approve and send invitation/);
   assert.match(service, /functions\.invoke\("manage-access-request"/);
-  assert.match(edgeFunction, /relationName\(profile\.roles\) !== "Admin"/);
+  assert.match(edgeFunction, /eq\("church_id",body\.churchId\)/);
+  assert.doesNotMatch(edgeFunction, /profile\.roles|relationName/);
   assert.match(edgeFunction, /!body\.approvedRole/);
   assert.match(edgeFunction, /auth\.admin\.deleteUser/);
   assert.doesNotMatch(edgeFunction, /requested_role/);

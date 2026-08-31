@@ -23,7 +23,7 @@ function Login() {
   const submit=async(e:FormEvent)=>{e.preventDefault();await signIn(email,password)};
   return <AuthShell><section aria-labelledby="login-title">
     <ChurchBrand compact/>
-    {requestingAccess ? <RequestAccessForm onBack={()=>setRequestingAccess(false)} /> : <><p className="eyebrow">Secure access</p><h1 id="login-title">Welcome back.</h1><p className="login-copy">Sign in with your authorized church account.</p>
+    {requestingAccess ? <RequestAccessForm onBack={()=>setRequestingAccess(false)} /> : <><p className="eyebrow">Secure access</p><h1 id="login-title">Welcome back.</h1><p className="login-copy">Sign in to your Faithful Steward workspace with your authorized church account.</p>
       {invitationNotice()&&<div className={new URLSearchParams(window.location.search).get("setup") === "complete" ? "form-success" : "form-error"} role="status">{invitationNotice()}</div>}
       {(error||supabaseConfigError)&&<div className="form-error" role="alert">{error||supabaseConfigError}</div>}
       <form className="login-form" onSubmit={submit}><label>Email address<input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><PasswordField label="Password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} required/><button className="primary-button" disabled={loading||!!supabaseConfigError}>{loading?<span className="button-loading"><i/>Signing in…</span>:"Sign in"}</button><div className="auth-divider"><span>Need an account?</span></div><button className="auth-link-button" type="button" onClick={()=>setRequestingAccess(true)}>Request Access</button></form></>}

@@ -7,7 +7,7 @@ declare const Deno: {
 
 const roleNames = ["Admin", "Pastor", "Treasurer", "Secretary", "Encoder", "Viewer"] as const;
 type RoleName = typeof roleNames[number];
-type RequestBody = { action?: "approve" | "reject"; requestId?: string; approvedRole?: RoleName };
+type RequestBody = { action?: "approve" | "reject"; churchId?: string; requestId?: string; approvedRole?: RoleName };
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -31,11 +31,6 @@ function response(request: Request, body: Record<string, unknown>, status = 200)
   });
 }
 
-function relationName(value: unknown) {
-  const role = Array.isArray(value) ? value[0] : value;
-  return String((role as { name?: unknown } | null)?.name || "");
-}
-
 Deno.serve(async request => {
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !allowedOrigin()) {
     return response(request, { error: "Access request service is not configured." }, 503);
@@ -56,20 +51,14 @@ Deno.serve(async request => {
   const { data: authData, error: authError } = await userClient.auth.getUser(token);
   if (authError || !authData.user) return response(request, { error: "Your session is invalid or expired." }, 401);
 
-  const { data: profile, error: profileError } = await userClient.from("users")
-    .select("id,is_active,roles(name)").eq("id", authData.user.id).single();
-  if (profileError || !profile?.is_active || relationName(profile.roles) !== "Admin") {
-    return response(request, { error: "Only an active Admin can process access requests." }, 403);
-  }
-
   let body: RequestBody;
   try { body = await request.json() as RequestBody; }
   catch { return response(request, { error: "Invalid request body." }, 400); }
-  if (!body.requestId || !body.action) return response(request, { error: "Request ID and action are required." }, 400);
+  if (!body.churchId || !body.requestId || !body.action) return response(request, { error: "Church, request ID, and action are required." }, 400);
 
   const { data: accessRequest, error: requestError } = await userClient.from("access_requests")
-    .select("id,full_name,email,status").eq("id", body.requestId).single();
-  if (requestError || !accessRequest) return response(request, { error: "Access request was not found." }, 404);
+    .select("id,church_id,full_name,email,status").eq("id", body.requestId).eq("church_id",body.churchId).single();
+  if (requestError || !accessRequest) return response(request, { error: "Access request was not found or you are not its Church Admin." }, 404);
   if (accessRequest.status !== "Pending") return response(request, { error: "This access request has already been processed." }, 409);
 
   if (body.action === "reject") {
@@ -87,7 +76,7 @@ Deno.serve(async request => {
   });
   const redirectTo = new URL("/?invited=true", appUrl).toString();
   const { data: invitation, error: invitationError } = await adminClient.auth.admin.inviteUserByEmail(accessRequest.email, {
-    data: { full_name: accessRequest.full_name },
+    data: { full_name: accessRequest.full_name, church_id: accessRequest.church_id },
     redirectTo,
   });
   if (invitationError || !invitation.user) {

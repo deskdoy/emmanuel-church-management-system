@@ -1,36 +1,37 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, supabaseConfigError } from "../lib/supabase";
-import type { AppUser, RoleName } from "../types";
+import { loadTenancyAuthorization } from "../services/tenancy";
+import type { ChurchMembership, PlatformRoleAssignment, UserProfile } from "../types";
 
 type AuthContextValue = {
   session: Session | null;
-  profile: AppUser | null;
+  profile: UserProfile | null;
+  memberships: ChurchMembership[];
+  platformRoles: PlatformRoleAssignment[];
+  isPlatformOwner:boolean;
   loading: boolean;
   error: string;
+  refreshAuthorization:()=>Promise<void>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function roleName(value: unknown): RoleName {
-  const candidate = Array.isArray(value) ? value[0]?.name : (value as {name?:unknown} | null)?.name;
-  return (["Admin","Pastor","Treasurer","Secretary","Encoder","Viewer"] as const).includes(candidate as RoleName)
-    ? candidate as RoleName : "Viewer";
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<AppUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [memberships,setMemberships]=useState<ChurchMembership[]>([]);
+  const [platformRoles,setPlatformRoles]=useState<PlatformRoleAssignment[]>([]);
   const [loading, setLoading] = useState(Boolean(supabase));
   const [error, setError] = useState(supabaseConfigError || "");
 
   const loadProfile = useCallback(async (nextSession: Session | null) => {
     setSession(nextSession);
-    if (!supabase || !nextSession?.user) { setProfile(null); setLoading(false); return; }
+    if (!supabase || !nextSession?.user) { setProfile(null);setMemberships([]);setPlatformRoles([]);setLoading(false);return; }
     const { data, error: profileError } = await supabase.from("users")
-      .select("id,email,full_name,is_active,roles(name)")
+      .select("id,email,full_name,is_active")
       .eq("id", nextSession.user.id).single();
     if (profileError) {
       setProfile(null);
@@ -41,11 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null); setError("This account is inactive. Contact an administrator.");
       await supabase.auth.signOut();
     } else {
-      setProfile({ id:data.id, email:data.email, fullName:data.full_name || "", role:roleName(data.roles), isActive:data.is_active });
-      setError("");
+      try{
+        const authorization=await loadTenancyAuthorization(data.id);
+        setProfile({id:data.id,email:data.email,fullName:data.full_name||"",isActive:data.is_active});
+        setMemberships(authorization.memberships);setPlatformRoles(authorization.platformRoles);setError("");
+      }catch(cause){setProfile(null);setMemberships([]);setPlatformRoles([]);setError(cause instanceof Error?cause.message:"Unable to load church access.");}
     }
     setLoading(false);
   }, []);
+
+  const refreshAuthorization=useCallback(async()=>{
+    if(!profile)return;
+    const authorization=await loadTenancyAuthorization(profile.id);
+    setMemberships(authorization.memberships);setPlatformRoles(authorization.platformRoles);
+  },[profile]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -70,10 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (supabase) await supabase.auth.signOut();
-    setSession(null); setProfile(null); setError("");
+    setSession(null);setProfile(null);setMemberships([]);setPlatformRoles([]);setError("");
   }, []);
 
-  const value = useMemo(() => ({ session, profile, loading, error, signIn, signOut }), [session, profile, loading, error, signIn, signOut]);
+  const isPlatformOwner=platformRoles.some(item=>item.isActive&&item.role.code==="platform_owner");
+  const value = useMemo(() => ({session,profile,memberships,platformRoles,isPlatformOwner,loading,error,refreshAuthorization,signIn,signOut}), [session,profile,memberships,platformRoles,isPlatformOwner,loading,error,refreshAuthorization,signIn,signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

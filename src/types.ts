@@ -1,6 +1,17 @@
 export type RoleName = "Admin" | "Pastor" | "Treasurer" | "Secretary" | "Encoder" | "Viewer";
 
 export interface Role { id: string; name: RoleName; description: string; createdAt: string }
+export interface UserProfile { id:string; email:string; fullName:string; isActive:boolean }
+export type ChurchStatus = "active" | "inactive" | "suspended";
+export interface Church { id:string; name:string; slug:string; address:string; logoUrl:string|null; status:ChurchStatus; timezone:string; currency:string; createdAt:string; updatedAt:string }
+export type ChurchMembershipStatus = "pending" | "active" | "inactive" | "revoked";
+export interface ChurchMembership { id:string; churchId:string; userId:string; roleId:string; role:RoleName; status:ChurchMembershipStatus; joinedAt:string|null; createdAt:string; updatedAt:string; church:Church }
+export interface PlatformRole { id:string; code:string; name:string; createdAt:string }
+export interface PlatformRoleAssignment { userId:string; platformRoleId:string; isActive:boolean; createdAt:string; updatedAt:string; role:PlatformRole }
+export type WorkspaceMode = "church" | "platform";
+export interface PlatformChurchSummary extends Church { totalMemberships:number; activeMemberships:number; activeAdmins:number }
+export interface PlatformOverview { churches:PlatformChurchSummary[]; totalUsers:number; totalMemberships:number }
+export interface ChurchDraftInput { name:string; slug:string; address:string; timezone:string; currency:string }
 export interface AppUser { id: string; email: string; fullName: string; role: RoleName; isActive: boolean }
 export interface Member { id: string; firstName: string; middleName: string; lastName: string; birthDate: string | null; joinedAt: string; phone: string; email: string | null; address: string; membershipStatus: string; ministry: string; notes: string; createdAt: string; updatedAt: string }
 export interface Attendance { id: string; memberId: string; eventId: string | null; attendanceDate: string; status: "Present" | "Absent" | "Late" | "Excused"; notes: string; createdAt: string }
@@ -10,8 +21,8 @@ export interface Expense { id: string; expenseDate: string; vendor: string; desc
 export interface ProjectFundingProgress { goalAmount:number|null; currentAmountRaised:number|null; progressPercentage:number|null; targetDate:string|null }
 export interface Project { id: string; name: string; description: string; budget: number; startDate: string | null; endDate: string | null; status: string; createdAt: string; funding:ProjectFundingProgress }
 export interface ProjectInput { id?:string; name:string; description:string; budget:number; startDate:string|null; endDate:string|null; status:"Planned"|"Active"|"On Hold"|"Completed"|"Cancelled" }
-export interface ManagedUser extends AppUser { roleId:string }
-export interface UserAccessUpdate { userId:string; roleId:string; isActive:boolean }
+export interface ManagedUser extends AppUser { membershipId:string; roleId:string }
+export interface UserAccessUpdate { membershipId:string; userId:string; roleId:string; isActive:boolean }
 export interface DashboardAuditEvent { id:number; actorName:string; action:"INSERT"|"UPDATE"|"DELETE"; tableName:string; recordId:string|null; createdAt:string }
 export interface ProjectGoalView { projectId:string; projectName:string; goalAmount:number; amountRaised:number; progressPercentage:number; targetDate:string|null }
 export interface Announcement { id: string; title: string; content: string; publishAt: string; expiresAt: string | null; isPublished: boolean; createdAt: string }
@@ -19,8 +30,8 @@ export interface ChurchEvent { id: string; title: string; description: string; l
 export interface SavedReport { id: string; title: string; reportType: string; dateFrom: string | null; dateTo: string | null; parameters: Record<string, unknown>; generatedData: Record<string, unknown>; createdAt: string }
 export interface AuditLog { id: number; actorUserId: string | null; actorName: string; actorEmail: string; action: "INSERT" | "UPDATE" | "DELETE"; tableName: string; recordId: string | null; oldValues: Record<string, unknown> | null; newValues: Record<string, unknown> | null; createdAt: string }
 export type AccessRequestStatus = "Pending" | "Approved" | "Rejected";
-export interface AccessRequest { id:string; fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string; status:AccessRequestStatus; approvedRoleId:string|null; approvedRole:RoleName|null; approvedBy:string|null; approvedByName:string; approvedAt:string|null; createdAt:string }
-export interface AccessRequestInput { fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string }
+export interface AccessRequest { id:string; churchId:string; fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string; status:AccessRequestStatus; approvedRoleId:string|null; approvedRole:RoleName|null; approvedBy:string|null; approvedByName:string; approvedAt:string|null; createdAt:string }
+export interface AccessRequestInput { churchId:string; fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string }
 
 export type TransactionSource = "offerings" | "donations" | "expenses";
 export interface Transaction { id:string; source:TransactionSource; date:string; type:"Income"|"Expense"; account:string; category:string; description:string; vendor?:string; moneyIn:number; moneyOut:number; paymentMethod:string; reference:string; notes:string; specifiedDetails?:string; createdAt:string }

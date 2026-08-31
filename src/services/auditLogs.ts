@@ -12,7 +12,7 @@ export type AuditLogFilters = {
 export const auditModules = [
   "access_requests", "account_transfers", "accounts", "announcements", "attendance", "categories", "donations", "events",
   "expenses", "members", "offerings", "payable_payments", "payables", "projects",
-  "reports", "users",
+  "reports", "church_memberships", "users",
 ] as const;
 
 const client = () => {
@@ -25,17 +25,18 @@ const relationUser = (value: unknown) => {
   return (user || {}) as { full_name?: unknown; email?: unknown };
 };
 
-export async function loadAuditUsers(): Promise<Pick<AppUser, "id" | "fullName" | "email">[]> {
-  const { data, error } = await client().from("users").select("id,full_name,email").order("full_name");
+export async function loadAuditUsers(churchId:string): Promise<Pick<AppUser, "id" | "fullName" | "email">[]> {
+  const { data, error } = await client().from("church_memberships").select("user_id,users(id,full_name,email)").eq("church_id",churchId).order("created_at");
   if (error) throw new Error(`Unable to load audit users: ${error.message}`);
-  return (data || []).map(user => ({ id: user.id, fullName: user.full_name || "", email: user.email }));
+  return (data || []).flatMap(row=>{const user=Array.isArray(row.users)?row.users[0]:row.users;return user?[{id:user.id,fullName:user.full_name||"",email:user.email}]:[];});
 }
 
-export async function loadAuditLogs(filters: AuditLogFilters): Promise<AuditLog[]> {
+export async function loadAuditLogs(churchId:string,filters: AuditLogFilters): Promise<AuditLog[]> {
   const rangeStart = new Date(`${filters.dateFrom}T00:00:00.000`).toISOString();
   const rangeEnd = new Date(`${filters.dateTo}T23:59:59.999`).toISOString();
   let query = client().from("audit_logs")
     .select("id,actor_user_id,action,table_name,record_id,old_values,new_values,created_at,users(full_name,email)")
+    .eq("church_id",churchId)
     .gte("created_at", rangeStart)
     .lte("created_at", rangeEnd)
     .order("created_at", { ascending: false })
@@ -64,10 +65,11 @@ export async function loadAuditLogs(filters: AuditLogFilters): Promise<AuditLog[
   });
 }
 
-export async function loadDashboardAuditActivity(limit=30):Promise<DashboardAuditEvent[]> {
+export async function loadDashboardAuditActivity(churchId:string,limit=30):Promise<DashboardAuditEvent[]> {
   const {data,error}=await client().from("audit_logs")
     .select("id,actor_user_id,action,table_name,record_id,created_at,users(full_name,email)")
-    .in("table_name",["offerings","donations","expenses","payable_payments","account_transfers","users","access_requests"])
+    .eq("church_id",churchId)
+    .in("table_name",["offerings","donations","expenses","payable_payments","account_transfers","church_memberships","users","access_requests"])
     .order("created_at",{ascending:false})
     .limit(limit);
   if(error)throw new Error(`Unable to load recent audit activity: ${error.message}`);

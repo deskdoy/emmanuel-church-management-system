@@ -6,13 +6,14 @@
 /* Church brand and user identity */
 .church-brand { display:flex; align-items:center; gap:12px; min-width:0; }
 .church-logo-placeholder { display:grid!important; place-items:center; width:46px; height:46px; flex:0 0 auto; border:1px solid rgba(255,255,255,.16); border-radius:15px 15px 15px 5px; background:linear-gradient(145deg,var(--lime),#bddd68); color:var(--forest-950); box-shadow:0 9px 24px rgba(0,0,0,.12); }
-.church-brand-copy { display:grid; min-width:0; line-height:1.2; }
-.church-brand-copy small { color:var(--muted); font-size:10px; letter-spacing:.05em; text-transform:uppercase; }
-.church-brand-copy b { font:600 17px var(--font-display); letter-spacing:-.01em; }
+.church-brand-copy { display:grid; min-width:0; gap:3px; line-height:1.12; }
+.church-brand-copy small { max-width:190px; color:var(--muted); font-size:8px; line-height:1.35; letter-spacing:.035em; }
+.church-brand-copy b { font:700 15px var(--font-display); letter-spacing:.045em; white-space:nowrap; }
 .church-brand.inverse .church-brand-copy small { color:#a9bcb4; }
 .church-brand.inverse .church-brand-copy b { color:#fff; }
 .church-brand.compact .church-logo-placeholder { width:40px; height:40px; border-color:var(--line); box-shadow:none; }
 .church-brand.compact .church-brand-copy b { color:var(--ink); }
+.church-brand.compact .church-brand-copy small { max-width:220px; }
 .brand { padding:0 8px 30px; }
 .brand .church-brand { width:100%; }
 
@@ -156,6 +157,7 @@ tbody tr:hover { background:#fafbf8; }
 .backup-preview { min-width:0; }
 .backup-print-sheet header { display:flex; justify-content:space-between; gap:18px; padding-bottom:18px; border-bottom:1px solid var(--line); }
 .backup-print-sheet header p { margin:0 0 4px; color:var(--forest-600); font-size:9px; font-weight:850; letter-spacing:.1em; text-transform:uppercase; }
+.backup-print-sheet header div>small { display:block; max-width:360px; margin-bottom:12px; color:var(--muted); font-size:8px; line-height:1.4; }
 .backup-print-sheet header h2 { margin:0; font:600 22px var(--font-display); }
 .backup-print-sheet header span { color:var(--muted); font-size:9px; line-height:1.6; text-align:right; }
 .backup-print-sheet header b { color:var(--ink); font-family:ui-monospace,monospace; }
@@ -183,6 +185,7 @@ tbody tr:hover { background:#fafbf8; }
 .cleanup-guidance { display:flex; align-items:center; justify-content:space-between; gap:20px; border-color:#ded5b4; background:linear-gradient(120deg,#fffdf6,#fff); }
 .cleanup-guidance h2 { margin:3px 0 7px; font:600 20px var(--font-display); }
 .cleanup-guidance p:last-child { max-width:760px; margin:0; color:var(--muted); font-size:10px; line-height:1.6; }
+.report-brand-monogram { font-size:13px; letter-spacing:-.04em; }
 
 /* Transactions */
 .transaction-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
@@ -285,6 +288,45 @@ tbody tr:hover { background:#fafbf8; }
   .modal { width:100%; max-height:94dvh; border-radius:22px 22px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom)); }
 }
 
+.church-workspace-switcher { display:flex; align-items:center; gap:10px; min-width:0; }
+.sidebar>.church-workspace-switcher { margin:4px 14px 16px; padding:12px; border:1px solid rgba(255,255,255,.14); border-radius:14px; background:rgba(255,255,255,.07); color:#fff; }
+.church-workspace-mark { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; overflow:hidden; border-radius:12px; background:var(--gold,#c79a36); color:var(--forest,#123c2f); font-size:12px; font-weight:900; letter-spacing:.06em; }
+.church-workspace-mark img { width:100%; height:100%; object-fit:cover; }
+.church-workspace-switcher>div { min-width:0; display:grid; gap:2px; }
+.church-workspace-switcher label { font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; opacity:.7; }
+.church-workspace-switcher b,.church-workspace-switcher small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.church-workspace-switcher b { font-size:13px; }
+.church-workspace-switcher small { font-size:10px; opacity:.7; }
+.church-workspace-switcher select { max-width:180px; min-height:32px; padding:4px 26px 4px 8px; border-radius:8px; font-size:12px; font-weight:700; }
+.church-workspace-switcher.compact { padding:7px 10px; border:1px solid var(--border,#e3dfd2); border-radius:14px; background:var(--surface,#fff); }
+.church-workspace-switcher.compact .church-workspace-mark { width:30px; height:30px; flex-basis:30px; border-radius:9px; }
+.church-workspace-switcher.compact label { color:var(--muted,#6e756f); }
+.workspace-heading-line { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.active-church-identity { display:flex; align-items:center; gap:7px; padding-left:11px; border-left:1px solid var(--border,#e3dfd2); font-size:11px; color:var(--muted,#6e756f); }
+.active-church-identity span { font-weight:800; color:var(--forest,#123c2f); }
+.active-church-identity small { padding:2px 6px; border-radius:999px; background:var(--ivory,#f7f3e8); }
+.platform-shell { min-height:100dvh; display:grid; grid-template-columns:280px minmax(0,1fr); background:var(--app-bg,#f5f2e9); }
+.platform-sidebar { position:sticky; top:0; height:100dvh; display:flex; flex-direction:column; gap:18px; padding:24px 18px; overflow:auto; background:var(--forest,#123c2f); color:#fff; }
+.platform-owner-badge { align-self:flex-start; padding:5px 9px; border:1px solid rgba(255,255,255,.2); border-radius:999px; color:var(--gold,#d2a94f); font-size:11px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+.platform-sidebar nav { display:grid; gap:6px; }
+.platform-sidebar-bottom { margin-top:auto; display:grid; gap:12px; }
+.platform-workspace { min-width:0; padding:0 32px 40px; }
+.platform-workspace>.panel,.platform-workspace>.leadership-metrics,.platform-workspace>.form-success,.platform-workspace>.error-banner { margin-top:22px; }
+.platform-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.platform-security-note { border-left:4px solid var(--gold,#d2a94f); }
+.platform-security-note h2 { margin-bottom:8px; }
+.platform-security-note p { max-width:850px; color:var(--muted,#6e756f); }
+
+@media(max-width:900px) {
+  .topbar-actions>.church-workspace-switcher { display:none; }
+  .platform-shell { display:block; }
+  .platform-sidebar { position:relative; width:auto; height:auto; padding:18px; }
+  .platform-sidebar nav,.platform-sidebar-bottom>.user-profile-indicator { display:none; }
+  .platform-sidebar-bottom { margin:0; }
+  .platform-workspace { padding:0 18px 30px; }
+  .platform-metrics { grid-template-columns:1fr; }
+}
+
 @media(max-width:480px) {
   .auth-form-area { padding-inline:18px; }
   .auth-form-area h1 { font-size:34px; }
@@ -295,6 +337,7 @@ tbody tr:hover { background:#fafbf8; }
 
 @media print {
   body { background:#fff!important; }
+  .church-workspace-switcher,.active-church-identity,.platform-sidebar { display:none!important; }
   .sidebar,.mobile-menu-button,.sidebar-overlay,.topbar,.no-print,.toast,.error-banner,.permission-banner,.loading-line,.user-profile-indicator { display:none!important; }
   .app-shell,.workspace,.reports-workspace,.report-layout,.report-output,.page-transition { display:block!important; width:auto!important; max-width:none!important; margin:0!important; padding:0!important; animation:none!important; }
   .reports-workspace>.module-tabs { display:none!important; }

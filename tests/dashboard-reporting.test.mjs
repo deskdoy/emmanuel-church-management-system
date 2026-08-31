@@ -9,7 +9,7 @@ test("leadership dashboard exposes the requested KPIs and visual summaries", () 
   for (const label of ["Current Balance", "Current Month Income", "Current Month Expenses", "Outstanding Payables", "Active Projects", "Income trend", "Expense categories", "Account balances", "Recent activity"]) {
     assert.match(dashboard, new RegExp(label));
   }
-  assert.match(dashboard, /isAdmin\?loadDashboardAuditActivity\(\):Promise\.resolve\(\[\]\)/);
+  assert.match(dashboard, /isAdmin\?loadDashboardAuditActivity\(churchId\):Promise\.resolve\(\[\]\)/);
   assert.match(dashboard, /User and audit activity is visible only to administrators/);
 });
 
@@ -26,7 +26,7 @@ test("report module includes all leadership statements, date controls, print, an
   for (const label of ["Cash Flow Statement", "Income vs Expense Report", "Account Summary Report", "Payables Report", "Financial Analytics", "As of Date", "Print / Save PDF", "Export CSV"]) {
     assert.match(reports, new RegExp(label));
   }
-  assert.match(reports, /organization="Emmanuel Cash Flow"|const organization="Emmanuel Cash Flow"/);
+  assert.match(reports, /const organization=BRAND_EXPORT_IDENTITY/);
   assert.match(reports, /Custom date range/);
   assert.match(reports, /Transfers are excluded|Transfers remain excluded|Internal transfers are excluded/);
 });
