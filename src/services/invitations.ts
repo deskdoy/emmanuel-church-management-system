@@ -137,3 +137,104 @@ if (functionError) {
   return invitation;
 
 }
+
+export async function loadChurchInvitations(
+  churchId: string
+) {
+
+  const db = client();
+
+  const { data, error } =
+    await db
+      .from("church_invitations")
+      .select(
+        `
+        id,
+        email,
+        full_name,
+        status,
+        invited_at,
+        expires_at,
+        accepted_at,
+        role_id,
+        role:roles (
+  name
+)
+        `
+      )
+      .eq(
+        "church_id",
+        churchId
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
+
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+
+  return data || [];
+
+}
+
+export async function cancelChurchInvitation(
+  invitationId: string
+) {
+
+  const db = client();
+
+  const { error } =
+    await db
+      .from("church_invitations")
+      .update({
+        status: "cancelled",
+      })
+      .eq(
+        "id",
+        invitationId
+      );
+
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+}
+
+export async function resendChurchInvitation(
+  invitationId: string
+) {
+
+  const db = client();
+
+
+  const {
+    error,
+  } = await db.functions.invoke(
+    "manage-church-invitation",
+    {
+      body: {
+        action: "send",
+        invitationId,
+      },
+    }
+  );
+
+
+  if (error) {
+    throw new Error(
+      error.message
+    );
+  }
+
+}

@@ -1,24 +1,101 @@
-import { FormEvent, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState
+} from "react";
 import { supabase } from "../../lib/supabase";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
-import { createDefaultFinancialSetup } from "../../services/setup";
+import {
+  createDefaultFinancialSetup,
+  loadSetupProgress,
+} from "../../services/setup";
 import { TeamSetupStep } from "./TeamSetupStep";
 import { SetupComplete } from "./SetupComplete";
 
 
-export function ChurchSetupWizard() {
+export function ChurchSetupWizard({
+  onComplete,
+}: {
+  onComplete: () => void;
+}) {
 
   const { activeChurch } = useActiveChurch();
 
-  const [saving, setSaving] = useState(false);
-  const [step, setStep] = useState(1);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+const [saving, setSaving] = useState(false);
+const [step, setStep] = useState<number | null>(null);
+const [message, setMessage] = useState("");
+const [error, setError] = useState("");
 
 
-  if (!activeChurch) {
-    return null;
+useEffect(() => {
+
+  if (!activeChurch) return;
+
+  async function determineSetupStep() {
+
+    try {
+
+      const progress =
+        await loadSetupProgress(
+          activeChurch.id
+        );
+
+
+      if (progress.setup_completed) {
+
+        setStep(4);
+        return;
+
+      }
+
+
+      if (!progress.profile_completed) {
+
+        setStep(1);
+        return;
+
+      }
+
+
+      if (!progress.financial_setup_completed) {
+
+        setStep(2);
+        return;
+
+      }
+
+
+      if (!progress.team_setup_completed) {
+
+        setStep(3);
+        return;
+
+      }
+
+
+      setStep(4);
+
+
+    } catch (error) {
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load setup progress."
+      );
+
+    }
+
   }
+
+
+  determineSetupStep();
+
+}, [activeChurch?.id]);
+
+if (!activeChurch) {
+  return null;
+}
 
 
 
@@ -160,7 +237,25 @@ setStep(3);
   }
 
 
+if (step === null) {
 
+  return (
+
+    <main className="setup-page">
+
+      <section className="setup-card">
+
+        <p>
+          Preparing your workspace...
+        </p>
+
+      </section>
+
+    </main>
+
+  );
+
+}
 
 
   return (
@@ -405,11 +500,11 @@ setStep(3);
 
   <SetupComplete
 
-    onContinue={() => {
-      window.location.reload();
-    }}
+  onContinue={() => {
+    onComplete();
+  }}
 
-  />
+/>
 
 )}
 

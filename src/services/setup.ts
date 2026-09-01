@@ -231,3 +231,40 @@ export async function completeChurchSetup(
   };
 
 }
+
+export async function loadSetupProgress(
+  churchId: string
+) {
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("church_setup_progress")
+    .select(
+      `
+      profile_completed,
+      financial_setup_completed,
+      team_setup_completed,
+      setup_completed
+      `
+    )
+    .eq(
+      "church_id",
+      churchId
+    )
+    .single();
+
+
+  if (error) {
+
+    throw new Error(
+      error.message
+    );
+
+  }
+
+
+  return data;
+
+}

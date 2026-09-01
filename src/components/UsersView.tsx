@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AccessRequestsView } from "./AccessRequestsView";
+import { TeamInvitationsView } from "./TeamInvitationsView";
 import { loadManagedUsers, updateUserAccess } from "../services/users";
 import type { ManagedUser, Role } from "../types";
 import { EmptyState } from "./ui/EmptyState";
@@ -9,7 +10,9 @@ import { UserProfileIndicator } from "./ui/UserProfileIndicator";
 type Draft={roleId:string;isActive:boolean};
 
 export function UsersView({churchId,currentUserId,onAuthorizationChanged}:{churchId:string;currentUserId:string;onAuthorizationChanged:()=>Promise<void>}) {
-  const [tab,setTab]=useState<"users"|"requests">("users"),[users,setUsers]=useState<ManagedUser[]>([]),[roles,setRoles]=useState<Role[]>([]);
+  const [tab,setTab]=useState<
+  "users" | "invitations" | "requests"
+>("users"),[users,setUsers]=useState<ManagedUser[]>([]),[roles,setRoles]=useState<Role[]>([]);
   const [drafts,setDrafts]=useState<Record<string,Draft>>({}),[loading,setLoading]=useState(true),[savingId,setSavingId]=useState("");
   const [error,setError]=useState(""),[notice,setNotice]=useState("");
   const refresh=useCallback(async()=>{
@@ -35,8 +38,49 @@ export function UsersView({churchId,currentUserId,onAuthorizationChanged}:{churc
     finally{setSavingId("");}
   };
   return <section className="users-module">
-    <div className="module-tabs user-module-tabs" aria-label="User administration"><button className={tab==="users"?"active":""} onClick={()=>setTab("users")}>Users <span>{users.length}</span></button><button className={tab==="requests"?"active":""} onClick={()=>setTab("requests")}>Access Requests</button></div>
-    {tab==="requests"?<AccessRequestsView churchId={churchId}/>:<section className="panel table-panel users-panel">
+    <div className="module-tabs user-module-tabs" aria-label="User administration">
+
+  <button
+    className={tab==="users"?"active":""}
+    onClick={()=>setTab("users")}
+  >
+    Users <span>{users.length}</span>
+  </button>
+
+
+  <button
+    className={tab==="invitations"?"active":""}
+    onClick={()=>setTab("invitations")}
+  >
+    Invitations
+  </button>
+
+
+  <button
+    className={tab==="requests"?"active":""}
+    onClick={()=>setTab("requests")}
+  >
+    Access Requests
+  </button>
+
+</div>
+    {
+  tab==="requests"
+    ? (
+        <AccessRequestsView
+          churchId={churchId}
+        />
+      )
+
+    : tab==="invitations"
+      ? (
+          <TeamInvitationsView
+            churchId={churchId}
+          />
+        )
+
+      :
+          <section className="panel table-panel users-panel">
       <div className="panel-head"><div><p className="eyebrow">Church Admin controls</p><h2>People and permissions</h2><p className="section-copy">Manage membership in this church while keeping financial history connected.</p></div><span className="period-button">{users.length} members</span></div>
       <p className="audit-note">Church role and membership status changes are written to the immutable audit log. Users are never deleted so financial history remains connected.</p>
       {notice&&<div className="form-success access-message" role="status">{notice}</div>}{error&&<div className="error-banner access-message" role="alert"><span>{error}</span><button onClick={()=>void refresh()}>Try again</button></div>}

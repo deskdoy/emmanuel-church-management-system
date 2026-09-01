@@ -18,11 +18,12 @@ export function SetupGate({
 
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
+const [refreshKey, setRefreshKey] = useState(0);
 
 
   useEffect(() => {
 
-    async function checkSetup() {
+  async function checkSetup() {
 
       if (
         workspaceMode !== "church" ||
@@ -92,9 +93,10 @@ export function SetupGate({
     checkSetup();
 
   }, [
-    activeChurch,
-    workspaceMode,
-  ]);
+  activeChurch,
+  workspaceMode,
+  refreshKey,
+]);
 
 
 
@@ -108,10 +110,16 @@ export function SetupGate({
 
 
   if (needsSetup) {
-    return (
-      <ChurchSetupWizard />
-    );
-  }
+  return (
+    <ChurchSetupWizard
+      onComplete={() =>
+        setRefreshKey(
+          value => value + 1
+        )
+      }
+    />
+  );
+}
 
 
   return children;
