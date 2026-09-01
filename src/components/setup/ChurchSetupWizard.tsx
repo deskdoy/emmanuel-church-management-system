@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
 import { createDefaultFinancialSetup } from "../../services/setup";
 import { TeamSetupStep } from "./TeamSetupStep";
+import { SetupComplete } from "./SetupComplete";
 
 
 export function ChurchSetupWizard() {
@@ -67,11 +68,6 @@ export function ChurchSetupWizard() {
 
     if (churchError) {
 
-      console.error(
-        "CHURCH UPDATE ERROR:",
-        churchError
-      );
-
       setError(
         churchError.message
       );
@@ -96,11 +92,6 @@ export function ChurchSetupWizard() {
 
 
     if (progressError) {
-
-      console.error(
-        "PROFILE PROGRESS ERROR:",
-        progressError
-      );
 
       setError(
         progressError.message
@@ -153,12 +144,6 @@ setStep(3);
     } catch (error) {
 
 
-      console.error(
-        "FINANCIAL SETUP ERROR:",
-        error
-      );
-
-
       setError(
         error instanceof Error
           ? error.message
@@ -193,23 +178,31 @@ setStep(3);
 
         <h1>
 
-          {
-            step === 1
-              ? "Complete your church profile"
-              : "Set up your financial workspace"
-          }
+{
+  step === 1
+    ? "Complete your church profile"
+    : step === 2
+      ? "Set up your financial workspace"
+      : step === 3
+        ? "Build your church team"
+        : "Setup Complete"
+}
 
-        </h1>
+</h1>
 
 
 
         <p className="login-copy">
 
           {
-            step === 1
-              ? "Tell us about your church before setting up the rest of your workspace."
-              : "Create your starting accounts and categories to begin managing church finances."
-          }
+  step === 1
+    ? "Tell us about your church before setting up the rest of your workspace."
+    : step === 2
+      ? "Create your starting accounts and categories to begin managing church finances."
+      : step === 3
+        ? "Invite your team members who will help manage your church workspace."
+        : "Your church workspace is ready."
+}
 
         </p>
 
@@ -402,6 +395,18 @@ setStep(3);
 
     onComplete={() => {
       setStep(4);
+    }}
+
+  />
+
+)}
+
+{step === 4 && (
+
+  <SetupComplete
+
+    onContinue={() => {
+      window.location.reload();
     }}
 
   />
