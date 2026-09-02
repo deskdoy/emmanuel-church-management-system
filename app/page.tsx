@@ -11,6 +11,7 @@ import { ProjectsView } from "../src/components/ProjectsView";
 import { ReportsView } from "../src/components/ReportsView";
 import { SettingsView } from "../src/components/SettingsView";
 import { SystemInformationView } from "../src/components/SystemInformationView";
+import { MembersView } from "../src/components/MembersView";
 import { UsersView } from "../src/components/UsersView";
 import { PlatformAdministrationView } from "../src/components/PlatformAdministrationView";
 import { AppIcon, type IconName } from "../src/components/ui/AppIcon";
@@ -22,7 +23,19 @@ import { ActiveChurchIdentity, ChurchWorkspaceSwitcher } from "../src/components
 import { addPayable, addTransaction, addTransfer, createAccount, extractSpecifiedDetails, isOtherCategory, loadCashFlow, recordPayablePayment, stripSpecifiedDetails, updateAccount, updateTransaction } from "../src/services/cashflow";
 import type { Account, AccountTransfer, CashFlowData as Data, CashFlowMutation, Payable, Transaction } from "../src/types";
 
-type View = "dashboard" | "transactions" | "payables" | "accounts" | "projects" | "reports" | "users" | "audit" | "backup" | "system" | "settings";
+type View =
+  | "dashboard"
+  | "transactions"
+  | "payables"
+  | "accounts"
+  | "projects"
+  | "reports"
+  | "members"
+  | "users"
+  | "audit"
+  | "backup"
+  | "system"
+  | "settings";
 type TransactionType = "Income" | "Expense" | "Transfer";
 type TransactionFilter = "all" | "income" | "expenses" | "transfers";
 type ModalName = "transaction" | "transaction-details" | "transaction-edit" | "payable" | "payable-payment" | "payable-details" | "account" | null;
@@ -138,10 +151,16 @@ function ChurchWorkspace() {
     } finally { setSaving(false); }
   };
   const headings: Record<View, [string, string]> = {
-    dashboard: [`${greeting}, ${firstName}.`, "Welcome to your Faithful Steward financial stewardship workspace."], transactions: ["Transactions", "Record and review money in, money out, and transfers."], payables: ["Payables", "Manage commitments, balances, and payments due."], accounts: ["Accounts", "Manage cash and bank accounts without losing history."], projects: ["Projects", "Plan and follow church initiatives in one place."], reports: ["Reports", "Generate statements and review cash flow analytics."], users: ["Users", "Manage approved users, roles, and account status."], audit: ["Audit logs", "Review secured, immutable records of activity across the system."], backup: ["Backup Center", "Generate audited browser-only exports for church records."], system: ["System Information", "Review application health and operational usage."], settings: ["Settings", "Review your account and application configuration."],
+    dashboard: [`${greeting}, ${firstName}.`, "Welcome to your Faithful Steward financial stewardship workspace."], transactions: ["Transactions", "Record and review money in, money out, and transfers."], payables: ["Payables", "Manage commitments, balances, and payments due."], accounts: ["Accounts", "Manage cash and bank accounts without losing history."], projects: ["Projects", "Plan and follow church initiatives in one place."], reports: ["Reports", "Generate statements and review cash flow analytics."], members: [
+  "Members",
+  "Manage church members, profiles, and ministry information."
+], users: ["Users", "Manage approved users, roles, and account status."], audit: ["Audit logs", "Review secured, immutable records of activity across the system."], backup: ["Backup Center", "Generate audited browser-only exports for church records."], system: ["System Information", "Review application health and operational usage."], settings: ["Settings", "Review your account and application configuration."],
   };
   const navItems: [View, IconName, string][] = [["dashboard", "dashboard", "Dashboard"], ["transactions", "transactions", "Transactions"], ["payables", "payables", "Payables"], ["accounts", "accounts", "Accounts"], ["projects", "projects", "Projects"], ["reports", "reports", "Reports"]];
-  if(isChurchAdmin)navItems.push(["users","users","Users"],["audit","audit","Audit Logs"],["backup","backup","Backup Center"],["system","system","System Information"]);
+  if(isChurchAdmin)
+navItems.push(
+ ["members","users","Members"],
+ ["users","users","Users"],["audit","audit","Audit Logs"],["backup","backup","Backup Center"],["system","system","System Information"]);
   navItems.push(["settings", "settings", "Settings"]);
   const showFinanceNotice = !canWriteFinance && ["transactions", "payables"].includes(view);
   const headerActions = () => {
@@ -168,6 +187,18 @@ function ChurchWorkspace() {
       {view === "accounts" && <section className="account-cards">{data.accounts.map(account => <article className={`account-card ${account.active === "No" ? "inactive" : ""}`} key={account.id}><div className="account-card-head"><span>{account.type}</span><span className={`status ${account.active === "No" ? "unpaid" : "paid"}`}>{account.active === "No" ? "Inactive" : "Active"}</span></div><h3>{account.name}</h3><strong>{peso(account.currentBalance)}</strong><div className="account-breakdown"><small>Money in <b>{peso(account.moneyIn)}</b></small><small>Money out <b>{peso(account.moneyOut)}</b></small><small>Transfer net <b>{peso(account.transferIn-account.transferOut)}</b></small></div><button className="outline-button account-action" disabled={!canManageAccounts} onClick={() => openAccount(account)}>Manage account</button></article>)}{!data.accounts.length && !loading && <EmptyState title="Set up your first account" description="Create a cash or bank account to begin recording church income and expenses." action={canManageAccounts?<button className="primary-button" onClick={()=>openAccount(null)}><AppIcon name="plus" size={17}/>New Account</button>:undefined}/>}</section>}
       {view === "projects" && activeChurch&&<ProjectsView churchId={activeChurch.id} canManage={hasChurchRole(activeRole,projectManagerRoles)}/>}
       {view === "reports" && <ReportsView data={data} />}
+      {view === "members" &&
+ isChurchAdmin &&
+ profile &&
+ activeChurch &&
+ <MembersView
+
+  churchId={activeChurch.id}
+
+  userId={profile.id}
+
+/>
+}
       {view === "users" && isChurchAdmin&&profile&&activeChurch&&<UsersView churchId={activeChurch.id} currentUserId={profile.id} onAuthorizationChanged={refreshAuthorization}/>}
       {view === "audit" && isChurchAdmin&&activeChurch&&<AuditLogsView churchId={activeChurch.id}/>}
       {view === "backup" && isChurchAdmin&&churchProfile&&activeChurch&&<BackupCenterView churchId={activeChurch.id} profile={churchProfile}/>}
