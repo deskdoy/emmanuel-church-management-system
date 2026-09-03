@@ -12,6 +12,11 @@ import { ReportsView } from "../src/components/ReportsView";
 import { SettingsView } from "../src/components/SettingsView";
 import { SystemInformationView } from "../src/components/SystemInformationView";
 import { MembersView } from "../src/components/MembersView";
+import { CategoryManagementView } from "../src/components/CategoryManagementView";
+import { PaymentMethodsView } from "../src/components/PaymentMethodsView";
+import { OfferingsView } from "../src/components/OfferingsView";
+import { DonationsView } from "../src/components/DonationsView";
+import { ExpensesView } from "../src/components/ExpensesView";
 import { UsersView } from "../src/components/UsersView";
 import { PlatformAdministrationView } from "../src/components/PlatformAdministrationView";
 import { AppIcon, type IconName } from "../src/components/ui/AppIcon";
@@ -26,8 +31,13 @@ import type { Account, AccountTransfer, CashFlowData as Data, CashFlowMutation, 
 type View =
   | "dashboard"
   | "transactions"
+  | "offerings"
+  | "donations"
+  | "expenses"
   | "payables"
   | "accounts"
+  | "categories"
+  | "payment-methods"
   | "projects"
   | "reports"
   | "members"
@@ -151,12 +161,106 @@ function ChurchWorkspace() {
     } finally { setSaving(false); }
   };
   const headings: Record<View, [string, string]> = {
-    dashboard: [`${greeting}, ${firstName}.`, "Welcome to your Faithful Steward financial stewardship workspace."], transactions: ["Transactions", "Record and review money in, money out, and transfers."], payables: ["Payables", "Manage commitments, balances, and payments due."], accounts: ["Accounts", "Manage cash and bank accounts without losing history."], projects: ["Projects", "Plan and follow church initiatives in one place."], reports: ["Reports", "Generate statements and review cash flow analytics."], members: [
-  "Members",
-  "Manage church members, profiles, and ministry information."
-], users: ["Users", "Manage approved users, roles, and account status."], audit: ["Audit logs", "Review secured, immutable records of activity across the system."], backup: ["Backup Center", "Generate audited browser-only exports for church records."], system: ["System Information", "Review application health and operational usage."], settings: ["Settings", "Review your account and application configuration."],
-  };
-  const navItems: [View, IconName, string][] = [["dashboard", "dashboard", "Dashboard"], ["transactions", "transactions", "Transactions"], ["payables", "payables", "Payables"], ["accounts", "accounts", "Accounts"], ["projects", "projects", "Projects"], ["reports", "reports", "Reports"]];
+
+  dashboard: [
+    `${greeting}, ${firstName}.`,
+    "Welcome to your Faithful Steward financial stewardship workspace."
+  ],
+
+  transactions: [
+    "Transactions",
+    "Record and review money in, money out, and transfers."
+  ],
+
+  offerings: [
+  "Offerings",
+  "Record worship offerings and church collections."
+],
+
+donations: [
+  "Donations",
+  "Record member and special donations."
+],
+
+expenses: [
+  "Expenses",
+  "Record church expenses and payments."
+],
+
+  payables: [
+    "Payables",
+    "Manage commitments, balances, and payments due."
+  ],
+
+  accounts: [
+    "Accounts",
+    "Manage cash and bank accounts without losing history."
+  ],
+
+  categories: [
+    "Categories",
+    "Manage income and expense categories for your church."
+  ],
+
+  "payment-methods": [
+    "Payment Methods",
+    "Manage accepted payment methods for your church."
+  ],
+
+  projects: [
+    "Projects",
+    "Plan and follow church initiatives in one place."
+  ],
+
+  reports: [
+    "Reports",
+    "Generate statements and review cash flow analytics."
+  ],
+
+  members: [
+    "Members",
+    "Manage church members, profiles, and ministry information."
+  ],
+
+  users: [
+    "Users",
+    "Manage approved users, roles, and account status."
+  ],
+
+  audit: [
+    "Audit logs",
+    "Review secured, immutable records of activity across the system."
+  ],
+
+  backup: [
+    "Backup Center",
+    "Generate audited browser-only exports for church records."
+  ],
+
+  system: [
+    "System Information",
+    "Review application health and operational usage."
+  ],
+
+  settings: [
+    "Settings",
+    "Review your account and application configuration."
+  ],
+
+};
+  const navItems: [View, IconName, string][] = [
+["dashboard", "dashboard", "Dashboard"],
+["transactions","transactions","Transactions"],
+["offerings","transactions","Offerings"],
+["donations","transactions","Donations"],
+["expenses","transactions","Expenses"],
+["payables","payables","Payables"],
+["accounts", "accounts", "Accounts"],
+["categories", "accounts", "Categories"],
+["payment-methods","accounts","Payment Methods"],
+["projects", "projects", "Projects"],
+["reports", "reports", "Reports"]
+];
   if(isChurchAdmin)
 navItems.push(
  ["members","users","Members"],
@@ -183,8 +287,53 @@ navItems.push(
       <PageTransition key={view} pageKey={view}>
       {view === "dashboard" && activeChurch&&<DashboardView churchId={activeChurch.id} data={data} isAdmin={isChurchAdmin} dataLoading={loading} onViewTransactions={() => setView("transactions")} />}
       {view === "transactions" && <div className="transaction-workspace"><section className="transaction-overview"><article><span className="transaction-overview-icon income"><AppIcon name="transactions"/></span><div><small>Money In</small><strong>{peso(totals.moneyIn)}</strong><p>{income.length} recorded entr{income.length===1?"y":"ies"}</p></div></article><article><span className="transaction-overview-icon expense"><AppIcon name="transactions"/></span><div><small>Money Out</small><strong>{peso(totals.moneyOut)}</strong><p>{expenses.length} recorded entr{expenses.length===1?"y":"ies"}</p></div></article><article><span className="transaction-overview-icon transfer"><AppIcon name="transactions"/></span><div><small>Account Transfers</small><strong>{data.transfers.length}</strong><p>Balance movements only</p></div></article></section><div className="transaction-toolbar"><div className="module-tabs transaction-filters" aria-label="Transaction type"><button className={transactionFilter==="all"?"active":""} onClick={()=>setTransactionFilter("all")}>All</button><button className={transactionFilter==="income"?"active":""} onClick={()=>setTransactionFilter("income")}>Money In <span>{income.length}</span></button><button className={transactionFilter==="expenses"?"active":""} onClick={()=>setTransactionFilter("expenses")}>Money Out <span>{expenses.length}</span></button><button className={transactionFilter==="transfers"?"active":""} onClick={()=>setTransactionFilter("transfers")}>Transfers <span>{data.transfers.length}</span></button></div><p>Choose a transaction type to review its ledger.</p></div><div className="transaction-ledgers">{["all","income"].includes(transactionFilter)&&<section className="panel table-panel"><div className="panel-head"><div><p className="eyebrow">{income.length} records</p><h2>Money In</h2></div><strong className="panel-total income-text">{peso(totals.moneyIn)}</strong></div><TransactionTable transactions={income} emptyMessage="Record tithes, offerings, donations, and other church income here." canEdit={canWriteFinance} onDetails={openTransactionDetails} onEdit={openTransactionEdit}/></section>}{["all","expenses"].includes(transactionFilter)&&<section className="panel table-panel"><div className="panel-head"><div><p className="eyebrow">{expenses.length} records</p><h2>Money Out</h2></div><strong className="panel-total">{peso(totals.moneyOut)}</strong></div><TransactionTable transactions={expenses} emptyMessage="Church expenses and vendor payments will be organized here." canEdit={canWriteFinance} onDetails={openTransactionDetails} onEdit={openTransactionEdit}/></section>}{["all","transfers"].includes(transactionFilter)&&<TransferHistory transfers={data.transfers}/>}</div></div>}
+      {view === "offerings" &&
+ activeChurch &&
+ profile &&
+ <OfferingsView
+
+   churchId={activeChurch.id}
+
+   userId={profile.id}
+
+/>
+}
+{view === "donations" &&
+ activeChurch &&
+ profile &&
+ <DonationsView
+
+   churchId={activeChurch.id}
+
+   userId={profile.id}
+
+/>
+}
+{view === "expenses" &&
+ activeChurch &&
+ profile &&
+ <ExpensesView
+
+   churchId={activeChurch.id}
+
+   userId={profile.id}
+
+/>
+}
       {view === "payables" && <section className="panel table-panel payables-panel"><div className="panel-head"><div><p className="eyebrow">{data.payables.filter(payable => payable.balance > 0).length} open items</p><h2>All payables</h2></div><strong className="panel-total">{peso(totals.payables)}</strong></div><div className="table-wrap responsive-table"><table><thead><tr><th>Due</th><th>Vendor / Payee</th><th>Category</th><th>Amount</th><th>Paid</th><th>Status</th><th className="num">Balance</th><th>Action</th></tr></thead><tbody>{data.payables.map(payable => <tr key={payable.id}><td data-label="Due">{dateLabel(payable.dueDate)}</td><td data-label="Vendor"><b>{payable.vendor}</b><small>{payable.payments.length} payment{payable.payments.length===1?"":"s"}</small></td><td data-label="Category">{payable.category}</td><td data-label="Amount">{peso(payable.amount)}</td><td data-label="Paid">{peso(payable.amountPaid)}</td><td data-label="Status"><span className={`status ${payable.status.toLowerCase().replaceAll(" ", "-")}`}>{payable.status}</span></td><td data-label="Balance" className="num">{peso(payable.balance)}</td><td data-label="Actions"><div className="row-actions"><button className="table-action" onClick={()=>openPayableDetails(payable)}>History</button><button className="table-action" disabled={!canWriteFinance || payable.balance <= 0} onClick={() => openPayablePayment(payable)}>{payable.balance > 0 ? "Record payment" : "Paid"}</button></div></td></tr>)}{!data.payables.length && <tr><td colSpan={8} className="blank-row"><EmptyState compact title="No payables yet" description="Add a commitment or bill to track its due date, payment history, and remaining balance."/></td></tr>}</tbody></table></div></section>}
       {view === "accounts" && <section className="account-cards">{data.accounts.map(account => <article className={`account-card ${account.active === "No" ? "inactive" : ""}`} key={account.id}><div className="account-card-head"><span>{account.type}</span><span className={`status ${account.active === "No" ? "unpaid" : "paid"}`}>{account.active === "No" ? "Inactive" : "Active"}</span></div><h3>{account.name}</h3><strong>{peso(account.currentBalance)}</strong><div className="account-breakdown"><small>Money in <b>{peso(account.moneyIn)}</b></small><small>Money out <b>{peso(account.moneyOut)}</b></small><small>Transfer net <b>{peso(account.transferIn-account.transferOut)}</b></small></div><button className="outline-button account-action" disabled={!canManageAccounts} onClick={() => openAccount(account)}>Manage account</button></article>)}{!data.accounts.length && !loading && <EmptyState title="Set up your first account" description="Create a cash or bank account to begin recording church income and expenses." action={canManageAccounts?<button className="primary-button" onClick={()=>openAccount(null)}><AppIcon name="plus" size={17}/>New Account</button>:undefined}/>}</section>}
+      {view === "categories" &&
+ activeChurch &&
+ <CategoryManagementView
+   churchId={activeChurch.id}
+/>
+}
+{view === "payment-methods" &&
+ activeChurch &&
+ <PaymentMethodsView
+   churchId={activeChurch.id}
+/>
+}
       {view === "projects" && activeChurch&&<ProjectsView churchId={activeChurch.id} canManage={hasChurchRole(activeRole,projectManagerRoles)}/>}
       {view === "reports" && <ReportsView data={data} />}
       {view === "members" &&
