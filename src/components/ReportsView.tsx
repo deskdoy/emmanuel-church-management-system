@@ -3,14 +3,27 @@ import { buildAccountSummaries, buildCashFlowStatement, buildExpenseCategoryBrea
 import { downloadReportCsv, type CsvExport } from "../reporting/exportCsv";
 import type { CashFlowData } from "../types";
 import { AppIcon } from "./ui/AppIcon";
+import { FinancialSummaryReport } from "./reports/FinancialSummaryReport";
+import { OfferingReport } from "./reports/OfferingReport";
+import { DonationReport } from "./reports/DonationReport";
+import { ExpenseDetailReport } from "./reports/ExpenseDetailReport";
 import { BRAND, BRAND_EXPORT_IDENTITY } from "../branding";
 
-type ReportType="cash-flow"|"income-expense"|"accounts"|"payables"|"analytics";
+type ReportType =
+  | "summary"
+  | "cash-flow"
+  | "income-expense"
+  | "accounts"
+  | "offerings"
+  | "donations"
+  | "expenses"
+  | "payables"
+  | "analytics";
 const organization=BRAND_EXPORT_IDENTITY;
 const localDate=(date=new Date())=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 const peso=(value:number)=>new Intl.NumberFormat("en-PH",{style:"currency",currency:"PHP"}).format(value||0);
 const dateLabel=(value:string)=>new Intl.DateTimeFormat("en-PH",{month:"long",day:"numeric",year:"numeric"}).format(new Date(`${value}T00:00:00`));
-const titleFor:Record<ReportType,string>={"cash-flow":"Cash Flow Statement","income-expense":"Income vs Expense Report",accounts:"Account Summary Report",payables:"Payables Report",analytics:"Financial Analytics"};
+const titleFor:Record<ReportType,string>={summary:"Financial Summary","cash-flow":"Cash Flow Statement","income-expense":"Income vs Expense Report",accounts:"Account Summary Report",offerings:"Offering Report",donations:"Donation Report",expenses:"Expense Detail Report",payables:"Payables Report",analytics:"Financial Analytics"};
 
 function ReportHeader({title,scope}:{title:string;scope:string}) {
   return <><div className="report-brand"><span className="brand-mark report-brand-monogram">{BRAND.monogram}</span><div><h2>{BRAND.productName}</h2><p>{BRAND.subtitle}</p></div></div><div className="leadership-report-title"><p className="eyebrow">Leadership report</p><h3>{title}</h3><span>{scope}</span></div></>;
@@ -43,7 +56,7 @@ function AnalyticsReport({data,range,scope}:{data:CashFlowData;range:DateRange;s
 
 export function ReportsView({data}:{data:CashFlowData}) {
   const today=localDate(),currentMonth=today.slice(0,7);
-  const [reportType,setReportType]=useState<ReportType>("cash-flow"),[periodMode,setPeriodMode]=useState<"monthly"|"custom">("monthly"),[month,setMonth]=useState(currentMonth),[customRange,setCustomRange]=useState<DateRange>({start:`${currentMonth}-01`,end:today});
+  const [reportType,setReportType]=useState<ReportType>("summary"),[periodMode,setPeriodMode]=useState<"monthly"|"custom">("monthly"),[month,setMonth]=useState(currentMonth),[customRange,setCustomRange]=useState<DateRange>({start:`${currentMonth}-01`,end:today});
   const snapshot=["accounts","payables"].includes(reportType);
   const rangeResult=useMemo(()=>{try{return{range:periodMode==="monthly"?monthDateRange(month):validateDateRange(customRange),error:""};}catch(cause){return{range:{start:today,end:today},error:cause instanceof Error?cause.message:"Invalid reporting period."};}},[customRange,month,periodMode,today]),range=rangeResult.range,error=rangeResult.error;
   const scope=snapshot?`As of ${dateLabel(today)}`:`${dateLabel(range.start)} – ${dateLabel(range.end)}`;
@@ -56,5 +69,91 @@ export function ReportsView({data}:{data:CashFlowData}) {
     else{exportData={organization,title:titleFor[reportType],scopeLabel:scope,headers:["Month","Income","Expenses"],rows:buildMonthlyTrend(data.transactions,6,new Date(`${range.end}T00:00:00`)).map(row=>[row.month,row.income,row.expenses]),filename:`financial-analytics-${range.end}.csv`};}
     downloadReportCsv(exportData);
   };
-  return <section className="reports-workspace"><div className="report-commandbar no-print"><span><AppIcon name="reports" size={22}/></span><div><b>Leadership report center</b><p>Select a statement, choose its period, then print or export a leadership-ready copy.</p></div></div><div className="module-tabs report-navigation no-print" aria-label="Financial reports">{(Object.keys(titleFor) as ReportType[]).map(type=><button key={type} className={reportType===type?"active":""} onClick={()=>setReportType(type)}>{titleFor[type].replace(" Report","").replace(" Statement","")}</button>)}</div><section className="report-layout"><aside className="panel report-controls no-print"><p className="eyebrow">Report controls</p><h2>{titleFor[reportType]}</h2><p className="section-copy">Set the reporting period and output format.</p>{!snapshot&&<><label>Period type<select value={periodMode} onChange={event=>setPeriodMode(event.target.value as "monthly"|"custom")}><option value="monthly">Monthly</option><option value="custom">Custom date range</option></select></label>{periodMode==="monthly"?<label>Month<input type="month" value={month} onChange={event=>setMonth(event.target.value)} required/></label>:<><label>Start date<input type="date" value={customRange.start} onChange={event=>setCustomRange(current=>({...current,start:event.target.value}))} required/></label><label>End date<input type="date" value={customRange.end} onChange={event=>setCustomRange(current=>({...current,end:event.target.value}))} required/></label></>}</>}{snapshot&&<div className="as-of-control"><span>As of Date</span><b>{dateLabel(today)}</b></div>}{error&&<div className="form-error" role="alert">{error}</div>}<button className="secondary-button" disabled={!!error} onClick={()=>window.print()}>Print / Save PDF</button><button className="outline-button" disabled={!!error} onClick={exportCsv}>Export CSV</button></aside><div className="report-output">{reportType==="cash-flow"?<CashFlowReport data={data} range={range} scope={scope}/>:reportType==="income-expense"?<IncomeExpenseReport data={data} range={range} scope={scope}/>:reportType==="accounts"?<AccountSummaryReport data={data} scope={scope}/>:reportType==="payables"?<PayablesReport data={data} scope={scope}/>:<AnalyticsReport data={data} range={range} scope={scope}/>}</div></section></section>;
+  return <section className="reports-workspace"><div className="report-commandbar no-print"><span><AppIcon name="reports" size={22}/></span><div><b>Leadership report center</b><p>Select a statement, choose its period, then print or export a leadership-ready copy.</p></div></div><div className="module-tabs report-navigation no-print" aria-label="Financial reports">{(Object.keys(titleFor) as ReportType[]).map(type=><button key={type} className={reportType===type?"active":""} onClick={()=>setReportType(type)}>{titleFor[type].replace(" Report","").replace(" Statement","")}</button>)}</div><section className="report-layout"><aside className="panel report-controls no-print"><p className="eyebrow">Report controls</p><h2>{titleFor[reportType]}</h2><p className="section-copy">Set the reporting period and output format.</p>{!snapshot&&<><label>Period type<select value={periodMode} onChange={event=>setPeriodMode(event.target.value as "monthly"|"custom")}><option value="monthly">Monthly</option><option value="custom">Custom date range</option></select></label>{periodMode==="monthly"?<label>Month<input type="month" value={month} onChange={event=>setMonth(event.target.value)} required/></label>:<><label>Start date<input type="date" value={customRange.start} onChange={event=>setCustomRange(current=>({...current,start:event.target.value}))} required/></label><label>End date<input type="date" value={customRange.end} onChange={event=>setCustomRange(current=>({...current,end:event.target.value}))} required/></label></>}</>}{snapshot&&<div className="as-of-control"><span>As of Date</span><b>{dateLabel(today)}</b></div>}{error&&<div className="form-error" role="alert">{error}</div>}<button className="secondary-button" disabled={!!error} onClick={()=>window.print()}>Print / Save PDF</button><button className="outline-button" disabled={!!error} onClick={exportCsv}>Export CSV</button></aside><div className="report-output">{
+reportType==="summary"
+
+?
+
+<FinancialSummaryReport
+  data={data}
+/>
+
+:
+
+reportType==="cash-flow"
+
+?
+
+<CashFlowReport
+  data={data}
+  range={range}
+  scope={scope}
+/>
+
+:
+
+reportType==="income-expense"
+
+?
+
+<IncomeExpenseReport
+  data={data}
+  range={range}
+  scope={scope}
+/>
+
+:
+
+reportType==="accounts"
+
+?
+
+<AccountSummaryReport
+  data={data}
+  scope={scope}
+/>
+
+:
+reportType==="offerings"
+?
+<OfferingReport
+  data={data}
+  scope={scope}
+/>
+
+:
+reportType==="donations"
+?
+<DonationReport
+  data={data}
+  scope={scope}
+/>
+
+:
+reportType==="expenses"
+?
+<ExpenseDetailReport
+  data={data}
+  scope={scope}
+/>
+
+:
+
+reportType==="payables"
+
+?
+
+<PayablesReport
+  data={data}
+  scope={scope}
+/>
+
+:
+
+<AnalyticsReport
+  data={data}
+  range={range}
+  scope={scope}
+/>
+}</div></section></section>;
 }

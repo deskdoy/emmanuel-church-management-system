@@ -41,8 +41,21 @@ export async function loadCashFlow(churchId:string):Promise<CashFlowData>{
     .order("created_at"),
 
   db
-    .from("offerings")
-    .select("id,offering_date,description,amount,payment_method,reference,notes,created_at")
+.from("offerings")
+.select(
+`
+id,
+offering_date,
+description,
+amount,
+payment_method,
+reference,
+notes,
+created_at,
+accounts(name),
+categories(name)
+`
+)
     .eq("church_id", churchId)
     .order("offering_date", { ascending: false }),
 
