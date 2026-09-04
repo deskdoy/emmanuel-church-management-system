@@ -41,8 +41,8 @@ export async function loadCashFlow(churchId:string):Promise<CashFlowData>{
     .order("created_at"),
 
   db
-.from("offerings")
-.select(
+  .from("offerings")
+  .select(
 `
 id,
 offering_date,
@@ -56,8 +56,8 @@ accounts(name),
 categories(name)
 `
 )
-    .eq("church_id", churchId)
-    .order("offering_date", { ascending: false }),
+  .eq("church_id", churchId)
+  .order("offering_date", { ascending: false }),
 
   db
     .from("donations")
@@ -65,9 +65,27 @@ categories(name)
     .eq("church_id", churchId),
 
   db
-    .from("expenses")
-    .select("id,expense_date,vendor,description,amount,payment_method,reference,notes,created_at,accounts(name),categories(name)")
-    .eq("church_id", churchId),
+  .from("expenses")
+  .select(`
+    id,
+    expense_date,
+    vendor,
+    description,
+    amount,
+    payment_method,
+    reference,
+    notes,
+    approval_status,
+    approved_by,
+    approved_at,
+    rejected_by,
+    rejected_at,
+    rejection_reason,
+    created_at,
+    accounts(name),
+    categories(name)
+  `)
+  .eq("church_id", churchId),
 
   db
     .from("payables")
@@ -94,7 +112,12 @@ categories(name)
   const transactions:Transaction[]=[
     ...(offeringsResult.data||[]).map(row=>({id:row.id,source:"offerings" as const,date:row.offering_date,type:"Income" as const,account:relationName(row.accounts),category:relationName(row.categories),description:row.description,moneyIn:numeric(row.amount),moneyOut:0,paymentMethod:row.payment_method,reference:row.reference,notes:row.notes,specifiedDetails:extractSpecifiedDetails(row.notes),createdAt:row.created_at})),
     ...(donationsResult.data||[]).map(row=>({id:row.id,source:"donations" as const,date:row.donation_date,type:"Income" as const,account:relationName(row.accounts),category:relationName(row.categories),description:row.description,moneyIn:numeric(row.amount),moneyOut:0,paymentMethod:row.payment_method,reference:row.reference,notes:row.notes,specifiedDetails:extractSpecifiedDetails(row.notes),createdAt:row.created_at})),
-    ...(expensesResult.data||[]).map(row=>({id:row.id,source:"expenses" as const,date:row.expense_date,type:"Expense" as const,account:relationName(row.accounts),category:relationName(row.categories),description:row.description,vendor:row.vendor,moneyIn:0,moneyOut:numeric(row.amount),paymentMethod:row.payment_method,reference:row.reference,notes:row.notes,specifiedDetails:extractSpecifiedDetails(row.notes),createdAt:row.created_at})),
+    ...(expensesResult.data||[]).map(row=>({id:row.id,source:"expenses" as const,date:row.expense_date,type:"Expense" as const,account:relationName(row.accounts),category:relationName(row.categories),description:row.description,vendor:row.vendor,moneyIn:0,moneyOut:numeric(row.amount),paymentMethod:row.payment_method,reference:row.reference,notes:row.notes,specifiedDetails:extractSpecifiedDetails(row.notes),createdAt:row.created_at,approvalStatus:row.approval_status,
+approvedBy:row.approved_by,
+approvedAt:row.approved_at,
+rejectedBy:row.rejected_by,
+rejectedAt:row.rejected_at,
+rejectionReason:row.rejection_reason,})),
   ].sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt));
   const transfers:AccountTransfer[]=(transfersResult.data||[]).map(row=>{const recorder=Array.isArray(row.recorder)?row.recorder[0]:row.recorder;return{id:row.id,date:row.transfer_date,fromAccountId:row.from_account_id,fromAccount:relationName(row.from_account),toAccountId:row.to_account_id,toAccount:relationName(row.to_account),amount:numeric(row.amount),reference:row.reference,notes:row.notes,recordedBy:row.recorded_by,recordedByName:String(recorder?.full_name||recorder?.email||"Unknown user"),createdAt:row.created_at}});
   const accounts:Account[]=(accountsResult.data||[]).map(row=>{const related=transactions.filter(t=>t.account===row.name),moneyIn=related.reduce((s,t)=>s+t.moneyIn,0),moneyOut=related.reduce((s,t)=>s+t.moneyOut,0),transferIn=transfers.filter(t=>t.toAccountId===row.id).reduce((s,t)=>s+t.amount,0),transferOut=transfers.filter(t=>t.fromAccountId===row.id).reduce((s,t)=>s+t.amount,0),openingBalance=numeric(row.opening_balance);return{id:row.id,name:row.name,type:row.account_type,openingBalance,moneyIn,moneyOut,transferIn,transferOut,currentBalance:openingBalance+moneyIn-moneyOut+transferIn-transferOut,active:row.is_active?"Yes":"No"}});
@@ -106,12 +129,45 @@ categories(name)
 
 async function currentUserId(){const {data,error}=await client().auth.getUser();if(error||!data.user)throw new Error(error?.message||"Your session has expired.");return data.user.id}
 
+async function requiresFinancialApproval(
+  churchId:string
+){
+
+  const {data,error}=await client()
+    .from("church_settings")
+    .select(
+      "financial_approval_required"
+    )
+    .eq(
+      "church_id",
+      churchId
+    )
+    .maybeSingle();
+
+
+  if(error){
+    throw new Error(error.message);
+  }
+
+
+  return Boolean(
+    data?.financial_approval_required
+  );
+
+}
+
 export async function addTransaction(churchId:string,transaction:Transaction,data:CashFlowData){
   const db=client(),account=data.accounts.find(item=>item.name===transaction.account),category=data.categories.find(item=>item.name===transaction.category&&item.type===transaction.type);
   if(!account||!category)throw new Error("The selected account or category is unavailable.");
-  const recordedBy=await currentUserId(),notes=transactionNotes(transaction);
+  const recordedBy=await currentUserId(),
+notes=transactionNotes(transaction),
+approvalRequired =
+  await requiresFinancialApproval(churchId);
   if(transaction.type==="Expense"){
-    const {error}=await db.from("expenses").insert({id:transaction.id,church_id:churchId,expense_date:transaction.date,vendor:transaction.vendor||"",description:transaction.description,amount:transaction.moneyOut,account_id:account.id,category_id:category.id,payment_method:transaction.paymentMethod,reference:transaction.reference,notes,recorded_by:recordedBy});if(error)throw new Error(error.message);return;
+    const {error}=await db.from("expenses").insert({id:transaction.id,church_id:churchId,expense_date:transaction.date,vendor:transaction.vendor||"",description:transaction.description,amount:transaction.moneyOut,account_id:account.id,category_id:category.id,payment_method:transaction.paymentMethod,reference:transaction.reference,notes,recorded_by:recordedBy,approval_status:
+  approvalRequired
+    ? "pending"
+    : "approved",});if(error)throw new Error(error.message);return;
   }
   const table=["Donations","Fundraising"].includes(transaction.category)?"donations":"offerings";
   const values={id:transaction.id,church_id:churchId,description:transaction.description,amount:transaction.moneyIn,account_id:account.id,category_id:category.id,payment_method:transaction.paymentMethod,reference:transaction.reference,notes,recorded_by:recordedBy};

@@ -10,6 +10,7 @@ import { DashboardView } from "../src/components/DashboardView";
 import { ProjectsView } from "../src/components/ProjectsView";
 import { ReportsView } from "../src/components/ReportsView";
 import { SettingsView } from "../src/components/SettingsView";
+import { FinancialApprovalView } from "../src/components/FinancialApprovalView";
 import { SystemInformationView } from "../src/components/SystemInformationView";
 import { MembersView } from "../src/components/MembersView";
 import { CategoryManagementView } from "../src/components/CategoryManagementView";
@@ -45,7 +46,8 @@ type View =
   | "audit"
   | "backup"
   | "system"
-  | "settings";
+  | "settings"
+  | "financial-approvals";
 type TransactionType = "Income" | "Expense" | "Transfer";
 type TransactionFilter = "all" | "income" | "expenses" | "transfers";
 type ModalName = "transaction" | "transaction-details" | "transaction-edit" | "payable" | "payable-payment" | "payable-details" | "account" | null;
@@ -108,6 +110,9 @@ function ChurchWorkspace() {
   const canWriteFinance=hasChurchRole(activeRole,financeWriterRoles);
   const canManageAccounts=hasChurchRole(activeRole,accountManagerRoles);
   const isChurchAdmin=activeRole==="Admin";
+  const canApproveFinance =
+  activeRole==="Admin" ||
+  activeRole==="Treasurer";
   const churchProfile=profile&&activeRole?{...profile,role:activeRole}:null;
   const firstName=(profile?.fullName||profile?.email||"Steward").trim().split(/\s+/)[0];
   const hour=new Date().getHours(),greeting=hour<12?"Good morning":hour<18?"Good afternoon":"Good evening";
@@ -247,6 +252,11 @@ expenses: [
     "Review your account and application configuration."
   ],
 
+  "financial-approvals": [
+  "Financial Approvals",
+  "Review and approve pending financial records."
+],
+
 };
   const navItems: [View, IconName, string][] = [
 ["dashboard", "dashboard", "Dashboard"],
@@ -265,6 +275,14 @@ expenses: [
 navItems.push(
  ["members","users","Members"],
  ["users","users","Users"],["audit","audit","Audit Logs"],["backup","backup","Backup Center"],["system","system","System Information"]);
+ if(canApproveFinance)
+  navItems.push(
+    [
+      "financial-approvals",
+      "transactions",
+      "Financial Approvals"
+    ]
+  );
   navItems.push(["settings", "settings", "Settings"]);
   const showFinanceNotice = !canWriteFinance && ["transactions", "payables"].includes(view);
   const headerActions = () => {
@@ -352,7 +370,25 @@ navItems.push(
       {view === "audit" && isChurchAdmin&&activeChurch&&<AuditLogsView churchId={activeChurch.id}/>}
       {view === "backup" && isChurchAdmin&&churchProfile&&activeChurch&&<BackupCenterView churchId={activeChurch.id} profile={churchProfile}/>}
       {view === "system" && isChurchAdmin&&churchProfile&&activeChurch&&<SystemInformationView churchId={activeChurch.id} profile={churchProfile}/>}
-      {view === "settings" && churchProfile&&<SettingsView profile={churchProfile} connected={connected}/>}
+      {view === "settings" &&
+ churchProfile &&
+ activeChurch &&
+ <SettingsView
+   profile={churchProfile}
+   connected={connected}
+   churchId={activeChurch.id}
+ />
+}
+
+{view === "financial-approvals" &&
+ activeChurch &&
+ profile &&
+ canApproveFinance &&
+ <FinancialApprovalView
+   churchId={activeChurch.id}
+   userId={profile.id}
+ />
+}
       </PageTransition>
     </section>
     {modal === "transaction" && canWriteFinance && <Modal title={transactionType === "Income" ? "Record income" : transactionType === "Expense" ? "Record expense" : "Transfer between accounts"} onClose={closeModal}><TransactionForm data={data} initialType={transactionType} saving={saving} onSubmit={save} /></Modal>}
@@ -396,7 +432,42 @@ function TransactionForm({ data, initialType, transaction, saving, onSubmit }: {
 }
 
 function TransactionDetails({transaction,canEdit,onEdit}:{transaction:Transaction;canEdit:boolean;onEdit:()=>void}){
-  return <div><div className="detail-grid"><div><span>Date</span><b>{dateLabel(transaction.date)}</b></div><div><span>Type</span><b>{transaction.type}</b></div><div><span>Amount</span><b>{peso(transaction.moneyIn||transaction.moneyOut)}</b></div><div><span>Account</span><b>{transaction.account}</b></div><div><span>Category</span><b>{transaction.category}</b></div><div><span>Payment method</span><b>{transaction.paymentMethod||"—"}</b></div>{transaction.vendor&&<div><span>Vendor / Payee</span><b>{transaction.vendor}</b></div>}<div><span>Reference</span><b>{transaction.reference||"—"}</b></div><div className="detail-full"><span>Description</span><b>{transaction.description||"—"}</b></div>{transaction.specifiedDetails&&<div className="detail-full"><span>Specified details</span><b>{transaction.specifiedDetails}</b></div>}<div className="detail-full"><span>Notes</span><b>{stripSpecifiedDetails(transaction.notes)||"—"}</b></div><div className="detail-full"><span>Record ID</span><code>{transaction.id}</code></div></div><div className="audit-note">Edits update this record in place. Its ID remains unchanged and the database audit log records old and new values.</div>{canEdit&&<button className="primary-button form-submit" onClick={onEdit}>Edit transaction</button>}</div>;
+  return <div><div className="detail-grid"><div><span>Date</span><b>{dateLabel(transaction.date)}</b></div><div><span>Type</span><b>{transaction.type}</b></div>{transaction.source==="expenses" &&
+ transaction.approvalStatus &&
+
+<div>
+  <span>Approval Status</span>
+  <b>
+    {transaction.approvalStatus}
+  </b>
+</div>
+
+}{transaction.source==="expenses" &&
+ transaction.approvedAt &&
+
+<div>
+  <span>Approved Date</span>
+  <b>
+    {dateLabel(transaction.approvedAt)}
+  </b>
+</div>
+
+}{transaction.source==="expenses" &&
+ transaction.rejectionReason &&
+
+<div className="detail-full">
+
+  <span>
+    Rejection Reason
+  </span>
+
+  <b>
+    {transaction.rejectionReason}
+  </b>
+
+</div>
+
+}<div><span>Amount</span><b>{peso(transaction.moneyIn||transaction.moneyOut)}</b></div><div><span>Account</span><b>{transaction.account}</b></div><div><span>Category</span><b>{transaction.category}</b></div><div><span>Payment method</span><b>{transaction.paymentMethod||"—"}</b></div>{transaction.vendor&&<div><span>Vendor / Payee</span><b>{transaction.vendor}</b></div>}<div><span>Reference</span><b>{transaction.reference||"—"}</b></div><div className="detail-full"><span>Description</span><b>{transaction.description||"—"}</b></div>{transaction.specifiedDetails&&<div className="detail-full"><span>Specified details</span><b>{transaction.specifiedDetails}</b></div>}<div className="detail-full"><span>Notes</span><b>{stripSpecifiedDetails(transaction.notes)||"—"}</b></div><div className="detail-full"><span>Record ID</span><code>{transaction.id}</code></div></div><div className="audit-note">Edits update this record in place. Its ID remains unchanged and the database audit log records old and new values.</div>{canEdit&&<button className="primary-button form-submit" onClick={onEdit}>Edit transaction</button>}</div>;
 }
 
 function PayableForm({ data, saving, onSubmit }: { data: Data; saving: boolean; onSubmit: (payload: CashFlowMutation) => Promise<void> }) {

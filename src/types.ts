@@ -34,7 +34,31 @@ export interface AccessRequest { id:string; churchId:string; fullName:string; em
 export interface AccessRequestInput { churchId:string; fullName:string; email:string; phone:string; requestedRole:RoleName; reason:string }
 
 export type TransactionSource = "offerings" | "donations" | "expenses";
-export interface Transaction { id:string; source:TransactionSource; date:string; type:"Income"|"Expense"; account:string; category:string; description:string; vendor?:string; moneyIn:number; moneyOut:number; paymentMethod:string; reference:string; notes:string; specifiedDetails?:string; createdAt:string }
+export interface Transaction { 
+  id:string; 
+  source:TransactionSource; 
+  date:string; 
+  type:"Income"|"Expense"; 
+  account:string; 
+  category:string; 
+  description:string; 
+  vendor?:string; 
+  moneyIn:number; 
+  moneyOut:number; 
+  paymentMethod:string; 
+  reference:string; 
+  notes:string; 
+  specifiedDetails?:string; 
+  createdAt:string;
+
+  // Financial approval workflow
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+}
 export interface Account { id:string; name:string; type:string; openingBalance:number; moneyIn:number; moneyOut:number; transferIn:number; transferOut:number; currentBalance:number; active:string }
 export interface AccountTransfer { id:string; date:string; fromAccountId:string; fromAccount:string; toAccountId:string; toAccount:string; amount:number; reference:string; notes:string; recordedBy:string; recordedByName:string; createdAt:string }
 export interface AccountTransferInput { id:string; date:string; fromAccountId:string; toAccountId:string; amount:number; reference:string; notes:string }

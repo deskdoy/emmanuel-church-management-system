@@ -1,4 +1,14 @@
-import { supabase } from "../lib/supabase";
+import { supabase as supabaseClient } from "../lib/supabase";
+
+
+if (!supabaseClient) {
+  throw new Error(
+    "Supabase client is not available."
+  );
+}
+
+
+const supabase = supabaseClient;
 
 
 type SetupResult = {
