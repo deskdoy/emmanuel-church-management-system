@@ -347,49 +347,78 @@ const exportExcel = () => {
 
 
       {
-        name: "Summary",
+  name: "Summary",
 
-        headers: [
-          "Metric",
-          "Amount"
-        ],
+  headers: [
+    "Item",
+    "Details"
+  ],
 
-        rows: [
+  rows: [
 
-          [
-            "Report",
-            titleFor[reportType]
-          ],
+    [
+      "FAITHFUL STEWARD",
+      BRAND_EXPORT_IDENTITY
+    ],
 
-          [
-            "Period",
-            scope
-          ],
+    [
+      "Report",
+      titleFor[reportType]
+    ],
 
-          [
-            "Generated",
-            generatedAt
-          ],
+    [
+      "Period",
+      scope
+    ],
 
-          [
-            "Total Income",
-            summary.totalIncome
-          ],
+    [
+      "Generated",
+      generatedAt
+    ],
 
-          [
-            "Total Expenses",
-            summary.totalExpenses
-          ],
+    [
+      "",
+      ""
+    ],
 
-          [
-            "Net Available Funds",
-            summary.netAvailableFunds
-          ]
+    [
+      "FINANCIAL OVERVIEW",
+      ""
+    ],
 
-        ]
+    [
+      "Total Income",
+      summary.totalIncome
+    ],
 
-      },
+    [
+      "Total Expenses",
+      summary.totalExpenses
+    ],
 
+    [
+      "Net Available Funds",
+      summary.netAvailableFunds
+    ],
+
+    [
+      "",
+      ""
+    ],
+
+    [
+      "Prepared By",
+      "____________________"
+    ],
+
+    [
+      "Approved By",
+      "____________________"
+    ]
+
+  ]
+
+},
 
 
       {
