@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { buildAccountSummaries, buildCashFlowStatement, buildExpenseCategoryBreakdown, buildIncomeExpenseReport, buildMonthlyTrend, buildPayablesReport, monthDateRange, validateDateRange, type DateRange } from "../reporting/calculations";
 import { downloadReportCsv, type CsvExport } from "../reporting/exportCsv";
+import {
+  downloadReportExcel,
+  type ExcelExport,
+} from "../reporting/exportExcel";
 import type { CashFlowData } from "../types";
 import { AppIcon } from "./ui/AppIcon";
 import { FinancialSummaryReport } from "./reports/FinancialSummaryReport";
@@ -56,20 +60,541 @@ function AnalyticsReport({data,range,scope}:{data:CashFlowData;range:DateRange;s
 
 export function ReportsView({data}:{data:CashFlowData}) {
   const today=localDate(),currentMonth=today.slice(0,7);
+  const generatedAt =
+  new Intl.DateTimeFormat(
+    "en-PH",
+    {
+      dateStyle:"medium",
+      timeStyle:"short"
+    }
+  ).format(new Date());
   const [reportType,setReportType]=useState<ReportType>("summary"),[periodMode,setPeriodMode]=useState<"monthly"|"custom">("monthly"),[month,setMonth]=useState(currentMonth),[customRange,setCustomRange]=useState<DateRange>({start:`${currentMonth}-01`,end:today});
   const snapshot=["accounts","payables"].includes(reportType);
   const rangeResult=useMemo(()=>{try{return{range:periodMode==="monthly"?monthDateRange(month):validateDateRange(customRange),error:""};}catch(cause){return{range:{start:today,end:today},error:cause instanceof Error?cause.message:"Invalid reporting period."};}},[customRange,month,periodMode,today]),range=rangeResult.range,error=rangeResult.error;
   const scope=snapshot?`As of ${dateLabel(today)}`:`${dateLabel(range.start)} – ${dateLabel(range.end)}`;
   const exportCsv=()=>{
     let exportData:CsvExport;
-    if(reportType==="cash-flow"){const row=buildCashFlowStatement(data,range);exportData={organization,title:titleFor[reportType],scopeLabel:scope,headers:["Line item","Amount (PHP)"],rows:[["Beginning Balance",row.beginningBalance],["Tithes",row.moneyIn.tithes],["Offerings",row.moneyIn.offerings],["Donations",row.moneyIn.donations],["Other Income",row.moneyIn.otherIncome],["Total Money In",row.moneyIn.total],["Expenses",row.moneyOut.expenses],["Other Expenses",row.moneyOut.otherExpenses],["Total Money Out",row.moneyOut.total],["Ending Balance",row.endingBalance]],filename:`cash-flow-${range.start}-to-${range.end}.csv`};}
-    else if(reportType==="income-expense"){const row=buildIncomeExpenseReport(data.transactions,range);exportData={organization,title:titleFor[reportType],scopeLabel:scope,headers:["Metric","Amount (PHP)"],rows:[["Total Income",row.totalIncome],["Total Expenses",row.totalExpenses],["Net Available Funds",row.netAvailableFunds]],filename:`income-vs-expense-${range.start}-to-${range.end}.csv`};}
-    else if(reportType==="accounts"){exportData={organization,title:titleFor[reportType],scopeLabel:scope,headers:["Account","Type","Total Inflow","Total Outflow","Current Balance"],rows:buildAccountSummaries(data).map(row=>[row.name,row.type,row.totalInflow,row.totalOutflow,row.currentBalance]),filename:`account-summary-${today}.csv`};}
-    else if(reportType==="payables"){exportData={organization,title:titleFor[reportType],scopeLabel:scope,headers:["Due Date","Vendor","Payable","Paid","Remaining","Status"],rows:buildPayablesReport(data.payables).map(row=>[row.dueDate,row.vendor,row.amount,row.paidAmount,row.remainingBalance,row.status]),filename:`payables-${today}.csv`};}
-    else{exportData={organization,title:titleFor[reportType],scopeLabel:scope,headers:["Month","Income","Expenses"],rows:buildMonthlyTrend(data.transactions,6,new Date(`${range.end}T00:00:00`)).map(row=>[row.month,row.income,row.expenses]),filename:`financial-analytics-${range.end}.csv`};}
-    downloadReportCsv(exportData);
+    if(reportType==="cash-flow"){
+
+  const row =
+    buildCashFlowStatement(
+      data,
+      range
+    );
+
+  exportData = {
+
+    organization,
+
+    title:
+      titleFor[reportType],
+
+    scopeLabel:
+      scope,
+
+    generatedAt,
+
+    headers:[
+      "Line item",
+      "Amount (PHP)"
+    ],
+
+    rows:[
+      ["Beginning Balance", row.beginningBalance],
+      ["Tithes", row.moneyIn.tithes],
+      ["Offerings", row.moneyIn.offerings],
+      ["Donations", row.moneyIn.donations],
+      ["Other Income", row.moneyIn.otherIncome],
+      ["Total Money In", row.moneyIn.total],
+      ["Expenses", row.moneyOut.expenses],
+      ["Other Expenses", row.moneyOut.otherExpenses],
+      ["Total Money Out", row.moneyOut.total],
+      ["Ending Balance", row.endingBalance]
+    ],
+
+    filename:
+      `cash-flow-${range.start}-to-${range.end}.csv`
+
   };
-  return <section className="reports-workspace"><div className="report-commandbar no-print"><span><AppIcon name="reports" size={22}/></span><div><b>Leadership report center</b><p>Select a statement, choose its period, then print or export a leadership-ready copy.</p></div></div><div className="module-tabs report-navigation no-print" aria-label="Financial reports">{(Object.keys(titleFor) as ReportType[]).map(type=><button key={type} className={reportType===type?"active":""} onClick={()=>setReportType(type)}>{titleFor[type].replace(" Report","").replace(" Statement","")}</button>)}</div><section className="report-layout"><aside className="panel report-controls no-print"><p className="eyebrow">Report controls</p><h2>{titleFor[reportType]}</h2><p className="section-copy">Set the reporting period and output format.</p>{!snapshot&&<><label>Period type<select value={periodMode} onChange={event=>setPeriodMode(event.target.value as "monthly"|"custom")}><option value="monthly">Monthly</option><option value="custom">Custom date range</option></select></label>{periodMode==="monthly"?<label>Month<input type="month" value={month} onChange={event=>setMonth(event.target.value)} required/></label>:<><label>Start date<input type="date" value={customRange.start} onChange={event=>setCustomRange(current=>({...current,start:event.target.value}))} required/></label><label>End date<input type="date" value={customRange.end} onChange={event=>setCustomRange(current=>({...current,end:event.target.value}))} required/></label></>}</>}{snapshot&&<div className="as-of-control"><span>As of Date</span><b>{dateLabel(today)}</b></div>}{error&&<div className="form-error" role="alert">{error}</div>}<button className="secondary-button" disabled={!!error} onClick={()=>window.print()}>Print / Save PDF</button><button className="outline-button" disabled={!!error} onClick={exportCsv}>Export CSV</button></aside><div className="report-output">{
+
+}
+
+
+else if(reportType==="income-expense"){
+
+  const row =
+    buildIncomeExpenseReport(
+      data.transactions,
+      range
+    );
+
+
+  exportData = {
+
+    organization,
+
+    title:
+      titleFor[reportType],
+
+    scopeLabel:
+      scope,
+
+    generatedAt,
+
+    headers:[
+      "Metric",
+      "Amount (PHP)"
+    ],
+
+    rows:[
+      ["Total Income", row.totalIncome],
+      ["Total Expenses", row.totalExpenses],
+      ["Net Available Funds", row.netAvailableFunds]
+    ],
+
+    filename:
+      `income-vs-expense-${range.start}-to-${range.end}.csv`
+
+  };
+
+}
+
+
+else if(reportType==="accounts"){
+
+
+  exportData = {
+
+    organization,
+
+    title:
+      titleFor[reportType],
+
+    scopeLabel:
+      scope,
+
+    generatedAt,
+
+    headers:[
+      "Account",
+      "Type",
+      "Total Inflow",
+      "Total Outflow",
+      "Current Balance"
+    ],
+
+    rows:
+      buildAccountSummaries(data)
+      .map(
+        row => [
+          row.name,
+          row.type,
+          row.totalInflow,
+          row.totalOutflow,
+          row.currentBalance
+        ]
+      ),
+
+    filename:
+      `account-summary-${today}.csv`
+
+  };
+
+}
+
+
+else if(reportType==="payables"){
+
+
+  exportData = {
+
+    organization,
+
+    title:
+      titleFor[reportType],
+
+    scopeLabel:
+      scope,
+
+    generatedAt,
+
+    headers:[
+      "Due Date",
+      "Vendor",
+      "Payable",
+      "Paid",
+      "Remaining",
+      "Status"
+    ],
+
+    rows:
+      buildPayablesReport(data.payables)
+      .map(
+        row => [
+          row.dueDate,
+          row.vendor,
+          row.amount,
+          row.paidAmount,
+          row.remainingBalance,
+          row.status
+        ]
+      ),
+
+    filename:
+      `payables-${today}.csv`
+
+  };
+
+}
+
+
+else {
+
+
+  exportData = {
+
+    organization,
+
+    title:
+      titleFor[reportType],
+
+    scopeLabel:
+      scope,
+
+    generatedAt,
+
+    headers:[
+      "Month",
+      "Income",
+      "Expenses"
+    ],
+
+    rows:
+      buildMonthlyTrend(
+        data.transactions,
+        6,
+        new Date(`${range.end}T00:00:00`)
+      )
+      .map(
+        row => [
+          row.month,
+          row.income,
+          row.expenses
+        ]
+      ),
+
+    filename:
+      `financial-analytics-${range.end}.csv`
+
+  };
+
+}
+    downloadReportCsv(exportData);
+};
+
+
+const exportExcel = () => {
+
+  const summary =
+    buildIncomeExpenseReport(
+      data.transactions,
+      range
+    );
+
+
+  const accounts =
+    buildAccountSummaries(data);
+
+
+  const payables =
+    buildPayablesReport(
+      data.payables
+    );
+
+
+  const offerings =
+    data.transactions.filter(
+      transaction =>
+        transaction.source === "offerings"
+    );
+
+
+  const donations =
+    data.transactions.filter(
+      transaction =>
+        transaction.source === "donations"
+    );
+
+
+  const expenses =
+    data.transactions.filter(
+      transaction =>
+        transaction.source === "expenses"
+    );
+
+
+
+  const workbook: ExcelExport = {
+
+
+    filename:
+      `financial-report-${today}.xlsx`,
+
+
+
+    sheets: [
+
+
+
+      {
+        name: "Summary",
+
+        headers: [
+          "Metric",
+          "Amount"
+        ],
+
+        rows: [
+
+          [
+            "Report",
+            titleFor[reportType]
+          ],
+
+          [
+            "Period",
+            scope
+          ],
+
+          [
+            "Generated",
+            generatedAt
+          ],
+
+          [
+            "Total Income",
+            summary.totalIncome
+          ],
+
+          [
+            "Total Expenses",
+            summary.totalExpenses
+          ],
+
+          [
+            "Net Available Funds",
+            summary.netAvailableFunds
+          ]
+
+        ]
+
+      },
+
+
+
+      {
+        name: "Offerings",
+
+        headers: [
+          "Date",
+          "Description",
+          "Category",
+          "Amount",
+          "Payment"
+        ],
+
+        rows:
+
+          offerings.map(
+            row => [
+
+              row.date,
+
+              row.description || "-",
+
+              row.category,
+
+              row.moneyIn,
+
+              row.paymentMethod || "-"
+
+            ]
+          )
+
+      },
+
+
+
+      {
+        name: "Donations",
+
+        headers: [
+          "Date",
+          "Description",
+          "Category",
+          "Amount",
+          "Payment"
+        ],
+
+        rows:
+
+          donations.map(
+            row => [
+
+              row.date,
+
+              row.description || "-",
+
+              row.category,
+
+              row.moneyIn,
+
+              row.paymentMethod || "-"
+
+            ]
+          )
+
+      },
+
+
+
+      {
+        name: "Expenses",
+
+        headers: [
+          "Date",
+          "Description",
+          "Category",
+          "Amount",
+          "Payment"
+        ],
+
+        rows:
+
+          expenses.map(
+            row => [
+
+              row.date,
+
+              row.description || "-",
+
+              row.category,
+
+              row.moneyOut,
+
+              row.paymentMethod || "-"
+
+            ]
+          )
+
+      },
+
+
+
+      {
+        name: "Accounts",
+
+        headers: [
+          "Account",
+          "Type",
+          "Income",
+          "Expenses",
+          "Balance"
+        ],
+
+        rows:
+
+          accounts.map(
+            row => [
+
+              row.name,
+
+              row.type,
+
+              row.income,
+
+              row.expenses,
+
+              row.currentBalance
+
+            ]
+          )
+
+      },
+
+
+
+      {
+        name: "Payables",
+
+        headers: [
+          "Vendor",
+          "Due Date",
+          "Amount",
+          "Paid",
+          "Remaining",
+          "Status"
+        ],
+
+        rows:
+
+          payables.map(
+            row => [
+
+              row.vendor,
+
+              row.dueDate,
+
+              row.amount,
+
+              row.paidAmount,
+
+              row.remainingBalance,
+
+              row.status
+
+            ]
+          )
+
+      }
+
+
+    ]
+
+  };
+
+
+
+  downloadReportExcel(
+    workbook
+  );
+
+};
+
+
+return <section className="reports-workspace"><div className="report-commandbar no-print"><span><AppIcon name="reports" size={22}/></span><div><b>Leadership report center</b><p>Select a statement, choose its period, then print or export a leadership-ready copy.</p></div></div><div className="module-tabs report-navigation no-print" aria-label="Financial reports">{(Object.keys(titleFor) as ReportType[]).map(type=><button key={type} className={reportType===type?"active":""} onClick={()=>setReportType(type)}>{titleFor[type].replace(" Report","").replace(" Statement","")}</button>)}</div><section className="report-layout"><aside className="panel report-controls no-print"><p className="eyebrow">Report controls</p><h2>{titleFor[reportType]}</h2><p className="section-copy">Set the reporting period and output format.</p>{!snapshot&&<><label>Period type<select value={periodMode} onChange={event=>setPeriodMode(event.target.value as "monthly"|"custom")}><option value="monthly">Monthly</option><option value="custom">Custom date range</option></select></label>{periodMode==="monthly"?<label>Month<input type="month" value={month} onChange={event=>setMonth(event.target.value)} required/></label>:<><label>Start date<input type="date" value={customRange.start} onChange={event=>setCustomRange(current=>({...current,start:event.target.value}))} required/></label><label>End date<input type="date" value={customRange.end} onChange={event=>setCustomRange(current=>({...current,end:event.target.value}))} required/></label></>}</>}{snapshot&&<div className="as-of-control"><span>As of Date</span><b>{dateLabel(today)}</b></div>}{error&&<div className="form-error" role="alert">{error}</div>}<button
+  className="secondary-button"
+  disabled={!!error}
+  onClick={()=>window.print()}
+>
+  Print / Save PDF
+</button>
+
+<button
+  className="outline-button"
+  disabled={!!error}
+  onClick={exportCsv}
+>
+  Export CSV
+</button>
+
+<button
+  className="outline-button"
+  disabled={!!error}
+  onClick={exportExcel}
+>
+  Export Excel
+</button></aside><div className="report-output">{
 reportType==="summary"
 
 ?

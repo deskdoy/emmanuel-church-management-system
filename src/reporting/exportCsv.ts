@@ -1,9 +1,35 @@
-export type CsvExport={organization:string;title:string;scopeLabel:string;headers:string[];rows:(string|number)[][];filename:string};
+export type CsvExport={
+
+ organization:string;
+
+ title:string;
+
+ scopeLabel:string;
+
+ generatedAt?:string;
+
+ headers:string[];
+
+ rows:(string|number)[][];
+
+ filename:string;
+
+};
 
 const escape=(value:string|number)=>`"${String(value??"").replaceAll('"','""')}"`;
 
 export function buildReportCsv(report:CsvExport) {
-  return [[report.organization],[report.title],[report.scopeLabel],[],report.headers,...report.rows].map(row=>row.map(escape).join(",")).join("\n");
+ return [
+  [report.organization],
+  [report.title],
+  [report.scopeLabel],
+  ...(report.generatedAt
+    ? [["Generated", report.generatedAt]]
+    : []),
+  [],
+  report.headers,
+  ...report.rows
+].map(row=>row.map(escape).join(",")).join("\n");
 }
 
 export function downloadReportCsv(report:CsvExport) {
