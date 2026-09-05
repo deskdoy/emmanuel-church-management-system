@@ -50,3 +50,14 @@ yarn-error.log*
 
 # Phase 8 test runtime
 .phase8-runtime.json
+
+# Temporary AI/tool folders
+_alchemist_stage/
+_backtest_stage/
+_mt5_stage/
+_sd_helper_assets/
+_sd_helper_stage/
+_tv_integration_stage/
+
+# Temporary files
+tmp/
