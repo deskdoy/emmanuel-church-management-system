@@ -3,7 +3,7 @@ import {
   useEffect,
   useState
 } from "react";
-import { supabase } from "../../lib/supabase";
+import { getSupabase } from "../../lib/supabase";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
 import {
   createDefaultFinancialSetup,
@@ -19,12 +19,26 @@ export function ChurchSetupWizard({
   onComplete: () => void;
 }) {
 
+  const supabase = getSupabase();
+
   const { activeChurch } = useActiveChurch();
 
+
 const [saving, setSaving] = useState(false);
+
 const [step, setStep] = useState<number | null>(null);
+
 const [message, setMessage] = useState("");
+
 const [error, setError] = useState("");
+
+
+if (!activeChurch) {
+  return null;
+}
+
+
+const church = activeChurch;
 
 
 useEffect(() => {
@@ -37,7 +51,7 @@ useEffect(() => {
 
       const progress =
         await loadSetupProgress(
-          activeChurch.id
+          church.id
         );
 
 
@@ -139,7 +153,7 @@ if (!activeChurch) {
         })
         .eq(
           "id",
-          activeChurch.id
+          church.id
         );
 
 
@@ -164,7 +178,7 @@ if (!activeChurch) {
         })
         .eq(
           "church_id",
-          activeChurch.id
+          church.id
         );
 
 
@@ -207,7 +221,7 @@ if (!activeChurch) {
     try {
 
       await createDefaultFinancialSetup(
-        activeChurch.id
+        church.id
       );
 
 

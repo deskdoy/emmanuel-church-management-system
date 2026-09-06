@@ -12,3 +12,13 @@ export const supabase = supabaseConfigError
   : createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
+
+export function getSupabase() {
+  if (!supabase) {
+    throw new Error(
+      "Supabase client is not configured."
+    );
+  }
+
+  return supabase;
+}

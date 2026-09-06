@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { getSupabase } from "../lib/supabase";
 import { useActiveChurch } from "../tenancy/ActiveChurchContext";
 import { ChurchSetupWizard } from "../components/setup/ChurchSetupWizard";
+
 
 export function SetupGate({
   children,
@@ -10,20 +11,36 @@ export function SetupGate({
   children: ReactNode;
 }) {
 
+const supabase = getSupabase();
+
   const {
     activeChurch,
     workspaceMode,
   } = useActiveChurch();
 
 
-  const [loading, setLoading] = useState(true);
-  const [needsSetup, setNeedsSetup] = useState(false);
-const [refreshKey, setRefreshKey] = useState(0);
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
+
+
+  const [
+    needsSetup,
+    setNeedsSetup
+  ] = useState(false);
+
+
+  const [
+    refreshKey,
+    setRefreshKey
+  ] = useState(0);
+
 
 
   useEffect(() => {
 
-  async function checkSetup() {
+    async function checkSetup() {
 
       if (
         workspaceMode !== "church" ||
@@ -34,7 +51,10 @@ const [refreshKey, setRefreshKey] = useState(0);
       }
 
 
-      const { data, error } =
+      const {
+        data,
+        error
+      } =
         await supabase
           .from("church_setup_progress")
           .select("setup_completed")
@@ -45,7 +65,9 @@ const [refreshKey, setRefreshKey] = useState(0);
           .maybeSingle();
 
 
+
       if (error) {
+
         console.error(
           "Setup check failed:",
           error
@@ -53,13 +75,16 @@ const [refreshKey, setRefreshKey] = useState(0);
 
         setLoading(false);
         return;
+
       }
 
 
-      // No setup record yet
+
       if (!data) {
 
-        const { error: createError } =
+        const {
+          error: createError
+        } =
           await supabase
             .from("church_setup_progress")
             .insert({
@@ -69,21 +94,27 @@ const [refreshKey, setRefreshKey] = useState(0);
 
 
         if (createError) {
+
           console.error(
             createError
           );
+
         }
 
 
         setNeedsSetup(true);
         setLoading(false);
+
         return;
+
       }
+
 
 
       setNeedsSetup(
         !data.setup_completed
       );
+
 
       setLoading(false);
 
@@ -92,35 +123,47 @@ const [refreshKey, setRefreshKey] = useState(0);
 
     checkSetup();
 
+
   }, [
-  activeChurch,
-  workspaceMode,
-  refreshKey,
-]);
+    activeChurch,
+    workspaceMode,
+    refreshKey
+  ]);
 
 
 
   if (loading) {
+
     return (
       <main className="auth-loading">
         Preparing workspace...
       </main>
     );
+
   }
 
 
+
   if (needsSetup) {
-  return (
-    <ChurchSetupWizard
-      onComplete={() =>
-        setRefreshKey(
-          value => value + 1
-        )
-      }
-    />
-  );
-}
+
+    return (
+
+      <ChurchSetupWizard
+
+        onComplete={() =>
+          setRefreshKey(
+            value => value + 1
+          )
+        }
+
+      />
+
+    );
+
+  }
+
 
 
   return children;
+
 }
