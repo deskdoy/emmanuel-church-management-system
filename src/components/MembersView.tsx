@@ -21,6 +21,11 @@ type Member = {
   id: string;
   church_id: string;
   created_by: string;
+  member_number: string | null;
+  gender: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  baptism_date: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -87,6 +92,11 @@ let query =
 id,
 church_id,
 created_by,
+member_number,
+gender,
+emergency_contact_name,
+emergency_contact_phone,
+baptism_date,
 first_name,
 middle_name,
 last_name,
@@ -147,8 +157,11 @@ notes
 
 
 
-      setMembers(
-        data || []
+      const loadedMembers = data || [];
+      setMembers(loadedMembers);
+      setSelectedMember(current => current
+        ? loadedMembers.find(row => row.id === current.id && row.church_id === churchId) || null
+        : null
       );
 
 
@@ -263,8 +276,19 @@ notes
 
 
         </div>
+{showForm && (
+  <MemberForm
+    churchId={churchId}
+    userId={userId}
+    onSaved={async () => {
+      setShowForm(false);
+      await loadMembers();
+    }}
+    onCancel={() => setShowForm(false)}
+  />
+)}
 {
-  selectedMember && (
+  selectedMember && !showForm && (
 
     <MemberProfile
 

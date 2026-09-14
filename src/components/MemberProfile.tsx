@@ -14,6 +14,11 @@ type MemberProfileProps = {
     id: string;
     church_id: string;
     created_by: string;
+    member_number: string | null;
+    gender: string | null;
+    emergency_contact_name: string | null;
+    emergency_contact_phone: string | null;
+    baptism_date: string | null;
     first_name: string;
     middle_name: string | null;
     last_name: string;
@@ -195,6 +200,26 @@ useEffect(() => {
         !editing && (
 
           <div className="detail-grid">
+            <div>
+              <span>Member Number</span>
+              <b>{member.member_number || "-"}</b>
+            </div>
+            <div>
+              <span>Gender</span>
+              <b>{member.gender || "-"}</b>
+            </div>
+            <div>
+              <span>Baptism Date</span>
+              <b>{member.baptism_date || "-"}</b>
+            </div>
+            <div>
+              <span>Emergency Contact Name</span>
+              <b>{member.emergency_contact_name || "-"}</b>
+            </div>
+            <div>
+              <span>Emergency Contact Phone</span>
+              <b>{member.emergency_contact_phone || "-"}</b>
+            </div>
 
 
             <div>

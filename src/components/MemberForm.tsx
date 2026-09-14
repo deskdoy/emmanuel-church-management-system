@@ -20,6 +20,11 @@ type MemberFormProps = {
   member?: {
     created_by: string;
     id: string;
+    member_number: string | null;
+    gender: string | null;
+    emergency_contact_name: string | null;
+    emergency_contact_phone: string | null;
+    baptism_date: string | null;
     first_name: string;
     middle_name: string | null;
     last_name: string;
@@ -85,6 +90,12 @@ export function MemberForm({
 
       church_id:
         churchId,
+
+      member_number: String(form.get("member_number") || "").trim() || null,
+      gender: String(form.get("gender") || ""),
+      emergency_contact_name: String(form.get("emergency_contact_name") || ""),
+      emergency_contact_phone: String(form.get("emergency_contact_phone") || ""),
+      baptism_date: String(form.get("baptism_date") || "") || null,
 
       first_name:
         String(
@@ -154,6 +165,7 @@ if (member) {
     await db
       .from("members")
       .update(memberData)
+      .eq("church_id", churchId)
       .eq(
         "id",
         member.id
@@ -207,6 +219,26 @@ if (member) {
     >
 
       <div className="form-grid">
+        <label>
+          Member Number
+          <input name="member_number" defaultValue={member?.member_number || ""} />
+        </label>
+        <label>
+          Gender
+          <input name="gender" defaultValue={member?.gender || ""} />
+        </label>
+        <label>
+          Baptism Date
+          <input type="date" name="baptism_date" defaultValue={member?.baptism_date || ""} />
+        </label>
+        <label>
+          Emergency Contact Name
+          <input name="emergency_contact_name" defaultValue={member?.emergency_contact_name || ""} />
+        </label>
+        <label>
+          Emergency Contact Phone
+          <input type="tel" name="emergency_contact_phone" defaultValue={member?.emergency_contact_phone || ""} />
+        </label>
 
 
         <label>
