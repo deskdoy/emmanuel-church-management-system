@@ -6,8 +6,15 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 
 test("Users module is Admin-only and never deletes users", () => {
   const page=read("app/page.tsx"),view=read("src/components/UsersView.tsx"),service=read("src/services/users.ts");
-  assert.match(page,/view === "users" && isChurchAdmin/);
-  assert.match(page,/isChurchAdmin[^\n]+"Users"/);
+  assert.match(page,/view\s*===\s*"users"\s*&&\s*isChurchAdmin\s*&&\s*profile\s*&&\s*activeChurch\s*&&\s*<UsersView\s+churchId=\{activeChurch\.id\}/);
+  // Administration entries are appended to navItems under a multiline role gate.
+  const adminNavigation = page.match(/if\s*\(\s*isChurchAdmin\s*\)\s*(?:\{\s*)?navItems\.push\(\s*((?:\[[^\]]+\]\s*,?\s*)+)\)/);
+  assert.ok(adminNavigation, "Church Admin must gate the administration navigation");
+  assert.match(adminNavigation[1], /\[\s*"users"\s*,\s*"users"\s*,\s*"Users"\s*\]/);
+  const defaultNavigation = page.match(/const\s+navItems\s*:[^=]+=(\s*\[[\s\S]*?);/);
+  assert.ok(defaultNavigation, "The default navigation must be present");
+  assert.doesNotMatch(defaultNavigation[1], /\[\s*"users"\s*,/);
+  assert.match(page, /isChurchAdmin\s*=\s*activeRole\s*===\s*"Admin"/);
   assert.match(view,/Users are never deleted/);
   assert.doesNotMatch(service,/\.delete\(/);
   assert.doesNotMatch(view,/Delete user|Remove user/);

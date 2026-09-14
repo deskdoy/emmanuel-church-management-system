@@ -4,17 +4,31 @@ import test from "node:test";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
+const assertAdminNavigation = (page, key, icon, label) => {
+  // Match the guarded push itself, so an unrelated later label cannot satisfy it.
+  const adminNavigation = page.match(/if\s*\(\s*isChurchAdmin\s*\)\s*(?:\{\s*)?navItems\.push\(\s*((?:\[[^\]]+\]\s*,?\s*)+)\)/);
+  assert.ok(adminNavigation, "Church Admin must gate the administration navigation");
+  assert.match(adminNavigation[1], new RegExp(`\\[\\s*"${key}"\\s*,\\s*"${icon}"\\s*,\\s*"${label}"\\s*\\]`));
+  const defaultNavigation = page.match(/const\s+navItems\s*:[^=]+=(\s*\[[\s\S]*?);/);
+  assert.ok(defaultNavigation, "The default navigation must be present");
+  assert.doesNotMatch(defaultNavigation[1], new RegExp(`\\[\\s*"${key}"\\s*,`));
+  assert.match(page, /isChurchAdmin\s*=\s*activeRole\s*===\s*"Admin"/);
+};
+
+
 test("financial navigation and entry actions are restored", () => {
   const page = read("app/page.tsx");
   const nav = page.slice(page.indexOf("const navItems"), page.indexOf("const showFinanceNotice"));
-  const labels = ["Dashboard", "Transactions", "Payables", "Accounts", "Projects", "Reports", "Users", "Audit Logs", "Backup Center", "System Information", "Settings"];
+  const labels = ["Dashboard", "Transactions", "Offerings", "Donations", "Expenses", "Payables", "Accounts", "Categories", "Payment Methods", "Projects", "Reports", "Members", "Users", "Audit Logs", "Backup Center", "System Information", "Financial Approvals", "Settings"];
   let previous = -1;
   for (const label of labels) {
     const position = nav.indexOf(`"${label}"`);
     assert.ok(position > previous, `${label} should appear in sidebar order`);
     previous = position;
   }
-  assert.doesNotMatch(nav, /"Income"|"Expenses"|"Analytics"|"Access Requests"/);
+  // Expenses now has a dedicated ledger; the combined transaction view remains.
+  assert.doesNotMatch(nav, /"Income"|"Analytics"|"Access Requests"/);
+  assert.match(page, /view\s*===\s*"expenses"\s*&&\s*activeChurch\s*&&\s*profile\s*&&\s*<ExpensesView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}\s+userId\s*=\s*\{\s*profile\.id\s*\}\s*\/>/);
   assert.match(page, /New Transaction/);
   assert.match(page, /Money In/);
   assert.match(page, /Money Out/);
@@ -24,7 +38,10 @@ test("financial navigation and entry actions are restored", () => {
   assert.match(page, /Payment history/);
   assert.match(page, /Transaction details/);
   assert.match(page, /Edit transaction/);
-  assert.match(page, /Specify details/);
+  assert.match(page, /Specify Other Expense Details/);
+  assert.match(page, /Specify Other Income Details/);
+  assert.match(page, /isOtherCategory\(\s*categoryName\s*\)\s*&&\s*<label\b/);
+  assert.match(page, /<input\s+name="specifiedDetails"(?:(?!\/>)[\s\S])*\srequired\s*\/>/);
   assert.match(page, /New Account/);
   assert.match(page, /Transfer history/);
   assert.match(page, /From account/);
@@ -113,8 +130,8 @@ test("audit logs are Admin-only, filterable, and read-only", () => {
   const view = read("src/components/AuditLogsView.tsx");
   const service = read("src/services/auditLogs.ts");
   const migration = read("supabase/migrations/20260827164514_admin_only_audit_logs.sql");
-  assert.match(page, /isChurchAdmin[^\n]+Audit Logs/);
-  assert.match(page, /view === "audit" && isChurchAdmin/);
+  assertAdminNavigation(page, "audit", "audit", "Audit Logs");
+  assert.match(page, /view\s*===\s*"audit"\s*&&\s*isChurchAdmin\s*&&\s*activeChurch\s*&&\s*<AuditLogsView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}/);
   for (const label of ["Start date", "End date", "User", "Action", "Module", "Timestamp", "Record affected", "Before values", "After values"]) assert.match(view, new RegExp(label));
   assert.match(service, /from\("audit_logs"\)/);
   assert.match(service, /\.gte\("created_at"/);
@@ -138,9 +155,9 @@ test("public access requests and Admin approval workflow are secured", () => {
   assert.match(route, /otp_expired/);
   assert.match(requestForm, /suggestion; the Church Admin chooses the final role/i);
   const usersView = read("src/components/UsersView.tsx");
-  assert.match(page, /isChurchAdmin[^\n]+"Users"/);
-  assert.match(page, /view === "users" && isChurchAdmin/);
-  assert.match(usersView, /<AccessRequestsView churchId=\{churchId\}\/>/);
+  assertAdminNavigation(page, "users", "users", "Users");
+  assert.match(page, /view\s*===\s*"users"\s*&&\s*isChurchAdmin\s*&&\s*profile\s*&&\s*activeChurch\s*&&\s*<UsersView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}/);
+  assert.match(usersView, /tab\s*===\s*"requests"\s*\?\s*\(\s*<AccessRequestsView\s+churchId\s*=\s*\{\s*churchId\s*\}\s*\/>/);
   assert.match(adminView, /Select final role/);
   assert.match(adminView, /Approve and send invitation/);
   assert.match(service, /functions\.invoke\("manage-access-request"/);

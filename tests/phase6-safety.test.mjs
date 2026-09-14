@@ -30,7 +30,14 @@ test("Phase 6 covers switching, role gates, isolation, and exact cleanup", () =>
   const e2e = read("tests/e2e/phase6-multichurch.spec.ts");
   const isolation = read("scripts/phase6/run-isolation-tests.mjs");
   const cleanup = read("scripts/phase6/cleanup.mjs");
-  assert.match(e2e, /Church workspace/);
+  // The E2E suite locates the workspace select directly, rather than by label.
+  assert.match(e2e, /\.locator\(\s*["']section\.church-workspace-switcher select["']\s*\)/);
+  for (const church of ["Emmanuel Church", "Phase 6 Demo Church"]) {
+    assert.match(e2e, new RegExp(`\\.selectOption\\(\\s*\\{\\s*label:\\s*"${church}"\\s*,?\\s*\\}`));
+  }
+  assert.match(e2e, /mobile drawer exposes church switching/);
+  assert.match(e2e, /\.toContainText\(\s*"Viewer"\s*\)/);
+  assert.match(e2e, /\.toContainText\(\s*"Treasurer"\s*\)/);
   assert.match(e2e, /Platform Owner receives platform controls/);
   assert.match(isolation, /Church A and Church B reads are mutually isolated/);
   assert.match(isolation, /Composite foreign keys reject cross-church account references/);

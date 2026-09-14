@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAccountSummaries, buildCashFlowStatement, buildDashboardKpis, buildIncomeExpenseReport, monthDateRange, validateDateRange } from "../src/reporting/calculations.ts";
+import { buildAccountSummaries, buildCashFlowStatement, buildDashboardKpis, buildExpenseCategoryBreakdown, buildIncomeExpenseReport, buildMonthlyTrend, monthDateRange, validateDateRange } from "../src/reporting/calculations.ts";
 import { buildReportCsv } from "../src/reporting/exportCsv.ts";
 
-const transaction=(id,date,type,account,category,amount)=>({id,source:type==="Income"?"offerings":"expenses",date,type,account,category,description:category,moneyIn:type==="Income"?amount:0,moneyOut:type==="Expense"?amount:0,paymentMethod:"Cash",reference:"",notes:"",createdAt:`${date}T08:00:00Z`});
+const transaction=(id,date,type,account,category,amount)=>({id,source:type==="Income"?"offerings":"expenses",date,type,account,category,description:category,moneyIn:type==="Income"?amount:0,moneyOut:type==="Expense"?amount:0,approvalStatus:type==="Expense"?"approved":undefined,paymentMethod:"Cash",reference:"",notes:"",createdAt:`${date}T08:00:00Z`});
 const data={
   accounts:[
     {id:"cash",name:"Cash on Hand",type:"Cash",openingBalance:1000,moneyIn:0,moneyOut:0,transferIn:0,transferOut:0,currentBalance:0,active:"Yes"},
@@ -57,6 +57,34 @@ test("transfers affect individual account balances but preserve organization tot
 
 test("dashboard KPIs use the current month and current account balances",()=>{
   assert.deepEqual(buildDashboardKpis(data,3,new Date(2026,0,15)),{currentBalance:2450,currentMonthIncome:1050,currentMonthExpenses:300,outstandingPayables:375,activeProjects:3});
+});
+
+test("reports count only approved expenses and income with any approval status",()=>{
+  const transactions=["2025-12-15","2026-01-15"].flatMap(date=>
+    ["approved","pending","rejected",undefined].flatMap(approvalStatus=>[
+      {...transaction(`${date}-${approvalStatus}-income`,date,"Income","Cash on Hand","Tithes",50),approvalStatus},
+      {...transaction(`${date}-${approvalStatus}-expense`,date,"Expense","Cash on Hand","Utilities",100),approvalStatus},
+    ])
+  );
+  const mixedData={...data,transactions},range={start:"2026-01-01",end:"2026-01-31"};
+  assert.deepEqual(buildCashFlowStatement(mixedData,range),{
+    beginningBalance:1600,
+    moneyIn:{tithes:200,offerings:0,donations:0,otherIncome:0,total:200},
+    moneyOut:{expenses:100,otherExpenses:0,total:100},
+    endingBalance:1700,
+  });
+  assert.deepEqual(buildIncomeExpenseReport(transactions,range),{totalIncome:200,totalExpenses:100,netAvailableFunds:100});
+  assert.deepEqual(buildAccountSummaries(mixedData),[
+    {id:"cash",name:"Cash on Hand",type:"Cash",openingBalance:1000,income:400,expenses:200,transferIn:0,transferOut:300,totalInflow:400,totalOutflow:500,currentBalance:900},
+    {id:"bank",name:"Bank Account",type:"Bank",openingBalance:500,income:0,expenses:0,transferIn:300,transferOut:0,totalInflow:300,totalOutflow:0,currentBalance:800},
+  ]);
+  assert.deepEqual(buildExpenseCategoryBreakdown(transactions,range),[{category:"Utilities",amount:100}]);
+  assert.deepEqual(buildExpenseCategoryBreakdown(transactions),[{category:"Utilities",amount:200}]);
+  assert.deepEqual(buildMonthlyTrend(transactions,2,new Date(2026,0,15)),[
+    {month:"2025-12",label:"Dec",income:200,expenses:100},
+    {month:"2026-01",label:"Jan",income:200,expenses:100},
+  ]);
+  assert.deepEqual(buildDashboardKpis(mixedData,3,new Date(2026,0,15)),{currentBalance:1700,currentMonthIncome:200,currentMonthExpenses:100,outstandingPayables:375,activeProjects:3});
 });
 
 test("CSV exports include leadership report metadata",()=>{

@@ -13,6 +13,7 @@ const sum=(values:number[])=>values.reduce((total,value)=>total+(Number(value)||
 const normalize=(value:string)=>value.trim().toLowerCase();
 const isOtherExpense=(category:string)=>/^others?\s+expenses?$/i.test(category.trim());
 const inRange=(date:string,range:DateRange)=>date>=range.start&&date<=range.end;
+const isReportableTransaction=(row:Transaction)=>row.type==="Income"||row.approvalStatus==="approved";
 const formatDate=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 
 export function monthDateRange(month:string):DateRange {
@@ -28,13 +29,13 @@ export function validateDateRange(range:DateRange):DateRange {
 }
 
 function accountBalance(data:Pick<CashFlowData,"transactions"|"transfers">,account:Account,predicate:(date:string)=>boolean) {
-  const transactionNet=sum(data.transactions.filter(row=>row.account===account.name&&predicate(row.date)).map(row=>row.moneyIn-row.moneyOut));
+  const transactionNet=sum(data.transactions.filter(row=>isReportableTransaction(row)&&row.account===account.name&&predicate(row.date)).map(row=>row.moneyIn-row.moneyOut));
   const transferNet=sum(data.transfers.filter(row=>predicate(row.date)&&row.toAccountId===account.id).map(row=>row.amount))-sum(data.transfers.filter(row=>predicate(row.date)&&row.fromAccountId===account.id).map(row=>row.amount));
   return account.openingBalance+transactionNet+transferNet;
 }
 
 export function buildCashFlowStatement(data:CashFlowData,rangeInput:DateRange):CashFlowStatement {
-  const range=validateDateRange(rangeInput),period=data.transactions.filter(row=>inRange(row.date,range));
+  const range=validateDateRange(rangeInput),period=data.transactions.filter(row=>isReportableTransaction(row)&&inRange(row.date,range));
   const income=period.filter(row=>row.type==="Income"),expenses=period.filter(row=>row.type==="Expense");
   const tithes=sum(income.filter(row=>normalize(row.category)==="tithes").map(row=>row.moneyIn));
   const offerings=sum(income.filter(row=>normalize(row.category)==="offerings").map(row=>row.moneyIn));
@@ -48,14 +49,14 @@ export function buildCashFlowStatement(data:CashFlowData,rangeInput:DateRange):C
 }
 
 export function buildIncomeExpenseReport(transactions:Transaction[],rangeInput:DateRange) {
-  const range=validateDateRange(rangeInput),period=transactions.filter(row=>inRange(row.date,range));
+  const range=validateDateRange(rangeInput),period=transactions.filter(row=>isReportableTransaction(row)&&inRange(row.date,range));
   const totalIncome=sum(period.map(row=>row.moneyIn)),totalExpenses=sum(period.map(row=>row.moneyOut));
   return{totalIncome,totalExpenses,netAvailableFunds:totalIncome-totalExpenses};
 }
 
 export function buildAccountSummaries(data:Pick<CashFlowData,"accounts"|"transactions"|"transfers">):AccountSummary[] {
   return data.accounts.map(account=>{
-    const rows=data.transactions.filter(row=>row.account===account.name),income=sum(rows.map(row=>row.moneyIn)),expenses=sum(rows.map(row=>row.moneyOut));
+    const rows=data.transactions.filter(row=>isReportableTransaction(row)&&row.account===account.name),income=sum(rows.map(row=>row.moneyIn)),expenses=sum(rows.map(row=>row.moneyOut));
     const transferIn=sum(data.transfers.filter(row=>row.toAccountId===account.id).map(row=>row.amount)),transferOut=sum(data.transfers.filter(row=>row.fromAccountId===account.id).map(row=>row.amount));
     const totalInflow=income+transferIn,totalOutflow=expenses+transferOut;
     return{id:account.id,name:account.name,type:account.type,openingBalance:account.openingBalance,income,expenses,transferIn,transferOut,totalInflow,totalOutflow,currentBalance:account.openingBalance+totalInflow-totalOutflow};
@@ -68,14 +69,14 @@ export function buildPayablesReport(payables:Payable[]) {
 
 export function buildExpenseCategoryBreakdown(transactions:Transaction[],range?:DateRange) {
   const totals=new Map<string,number>();
-  for(const row of transactions){if(row.type!=="Expense"||(range&&!inRange(row.date,range)))continue;totals.set(row.category,(totals.get(row.category)||0)+row.moneyOut);}
+  for(const row of transactions){if(row.type!=="Expense"||!isReportableTransaction(row)||(range&&!inRange(row.date,range)))continue;totals.set(row.category,(totals.get(row.category)||0)+row.moneyOut);}
   return [...totals].map(([category,amount])=>({category,amount})).sort((a,b)=>b.amount-a.amount);
 }
 
 export function buildMonthlyTrend(transactions:Transaction[],count=6,asOf=new Date()) {
   return Array.from({length:count},(_,index)=>{
     const date=new Date(asOf.getFullYear(),asOf.getMonth()-count+1+index,1),month=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;
-    const rows=transactions.filter(row=>row.date.startsWith(month));
+    const rows=transactions.filter(row=>isReportableTransaction(row)&&row.date.startsWith(month));
     return{month,label:date.toLocaleString("en",{month:"short"}),income:sum(rows.map(row=>row.moneyIn)),expenses:sum(rows.map(row=>row.moneyOut))};
   });
 }

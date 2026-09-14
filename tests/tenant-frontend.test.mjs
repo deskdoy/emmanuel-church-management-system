@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import ts from "typescript";
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),"utf8");
 
@@ -15,26 +16,54 @@ test("authorization comes from active church membership, not users.role_id",()=>
 
 test("tenant finance services require explicit church scope on reads and writes",()=>{
   const service=read("src/services/cashflow.ts");
-  assert.match(service,/loadCashFlow\(churchId:string\)/);
+  assert.match(service,/loadCashFlow\(\s*churchId\s*:\s*string\s*\)/);
+  const source = ts.createSourceFile("cashflow.ts", service, ts.ScriptTarget.Latest, true);
+  const loader = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "loadCashFlow");
+  assert.ok(loader?.body, "loadCashFlow must have an implementation");
+  const queries = [];
+  const visit = node => {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "from") {
+      const table = node.arguments[0];
+      assert.ok(table && ts.isStringLiteral(table), "Cash flow reads must identify their table");
+      // Inspect only this fluent query chain: a later query's filter cannot satisfy it.
+      const calls = [];
+      let call = node;
+      while (ts.isPropertyAccessExpression(call.parent) && call.parent.expression === call && ts.isCallExpression(call.parent.parent)) {
+        call = call.parent.parent;
+        calls.push(call);
+      }
+      queries.push({ table: table.text, calls });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(loader.body);
   for(const table of ["accounts","categories","offerings","donations","expenses","payables","payable_payments","account_transfers"]){
-    assert.match(service,new RegExp(`from\\("${table}"\\)[^;]+eq\\("church_id",churchId\\)`));
+    const tableQueries = queries.filter(query => query.table === table);
+    assert.ok(tableQueries.length > 0, `${table} must be loaded`);
+    for (const query of tableQueries) {
+      assert.ok(query.calls.some(call => call.expression.name.text === "select"), `${table} must be read`);
+      assert.ok(query.calls.some(call => {
+        const [column, value] = call.arguments;
+        return call.expression.name.text === "eq" && column && ts.isStringLiteral(column) && column.text === "church_id" && value && ts.isIdentifier(value) && value.text === "churchId";
+      }), `${table} must filter by the requested churchId`);
+    }
   }
-  assert.match(service,/church_id:churchId/);
-  assert.match(service,/updateTransaction\(churchId:string/);
-  assert.match(service,/updateAccount\(churchId:string/);
-  assert.match(service,/eq\("id",transaction\.id\)\.eq\("church_id",churchId\)/);
-  assert.match(service,/eq\("id",accountId\)\.eq\("church_id",churchId\)/);
+  assert.match(service,/church_id\s*:\s*churchId/);
+  assert.match(service,/updateTransaction\(\s*churchId\s*:\s*string/);
+  assert.match(service,/updateAccount\(\s*churchId\s*:\s*string/);
+  assert.match(service,/eq\(\s*"id"\s*,\s*transaction\.id\s*\)\s*\.eq\(\s*"church_id"\s*,\s*churchId\s*\)/);
+  assert.match(service,/eq\(\s*"id"\s*,\s*accountId\s*\)\s*\.eq\(\s*"church_id"\s*,\s*churchId\s*\)/);
 });
 
 test("projects, audit, reports, backups, and system counts stay church scoped",()=>{
   const projects=read("src/services/projects.ts"),audit=read("src/services/auditLogs.ts"),operations=read("src/services/operationalManagement.ts");
   assert.match(projects,/loadProjects\(churchId:string\)/);
-  assert.match(projects,/church_id:churchId/);
+  assert.match(projects,/church_id\s*:\s*churchId/);
   assert.match(projects,/eq\("id",project\.id\)\.eq\("church_id",churchId\)/);
   assert.match(audit,/eq\("church_id",churchId\)/);
   assert.match(operations,/requireAdmin\(churchId:string\)/);
   assert.match(operations,/from\("church_memberships"\)/);
-  assert.match(operations,/church_id:churchId/);
+  assert.match(operations,/church_id\s*:\s*churchId/);
   assert.match(operations,/eq\("church_id",churchId\)/);
   assert.doesNotMatch(operations,/from\("users"\)\.select\("id,roles\(name\)"/);
 });
