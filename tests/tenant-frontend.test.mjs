@@ -76,9 +76,12 @@ test("local storage contains only a church preference, never role authorization"
 
 test("church switching is visible in the desktop shell and mobile drawer",()=>{
   const page=read("app/page.tsx"),switcher=read("src/components/tenancy/ChurchWorkspaceSwitcher.tsx"),css=read("src/styles/primitives.css");
-  assert.match(page,/<ChurchWorkspaceSwitcher onSwitched=/);
-  assert.match(page,/<ChurchWorkspaceSwitcher compact\/>/);
-  assert.match(page,/<ActiveChurchIdentity\/>/);
+  const sidebar=read("src/components/layout/Sidebar.tsx"),topbar=read("src/components/layout/Topbar.tsx");
+  assert.match(page,/<Sidebar\b/);
+  assert.match(page,/<Topbar\b/);
+  assert.match(sidebar,/<ChurchWorkspaceSwitcher onSwitched=/);
+  assert.match(topbar,/<ChurchWorkspaceSwitcher compact\/>/);
+  assert.match(topbar,/<ActiveChurchIdentity\/>/);
   assert.match(switcher,/activeMemberships\.length>1/);
   assert.match(switcher,/switchChurch\(event\.target\.value\)/);
   assert.match(css,/@media\(max-width:900px\)/);

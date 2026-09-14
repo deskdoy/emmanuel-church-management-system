@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../src/auth/AuthContext";
 import { useActiveChurch } from "../src/tenancy/ActiveChurchContext";
 import { accountManagerRoles, financeWriterRoles, hasChurchRole, projectManagerRoles } from "../src/tenancy/permissions";
@@ -27,55 +27,14 @@ import { PayablePaymentForm } from "../src/components/transactions/PayablePaymen
 import { PayableDetails } from "../src/components/transactions/PayableDetails";
 import { AccountForm } from "../src/components/transactions/AccountForm";
 import { dateLabel, peso } from "../src/components/transactions/formatters";
-import { AppIcon, type IconName } from "../src/components/ui/AppIcon";
-import { ChurchBrand } from "../src/components/ui/ChurchBrand";
+import { Sidebar } from "../src/components/layout/Sidebar";
+import { Topbar } from "../src/components/layout/Topbar";
+import type { NavigationItem, View } from "../src/components/layout/types";
+import { AppIcon } from "../src/components/ui/AppIcon";
 import { EmptyState } from "../src/components/ui/EmptyState";
 import { PageTransition } from "../src/components/ui/PageTransition";
-import { UserProfileIndicator } from "../src/components/ui/UserProfileIndicator";
-import { ActiveChurchIdentity, ChurchWorkspaceSwitcher } from "../src/components/tenancy/ChurchWorkspaceSwitcher";
 import { addPayable, addTransaction, addTransfer, createAccount, loadCashFlow, recordPayablePayment, updateAccount, updateTransaction } from "../src/services/cashflow";
 import type { Account, AccountTransfer, CashFlowData as Data, CashFlowMutation, Payable, Transaction } from "../src/types";
-
-type View =
-  | "dashboard"
-  | "transactions"
-  | "offerings"
-  | "donations"
-  | "expenses"
-  | "payables"
-  | "accounts"
-  | "categories"
-  | "payment-methods"
-  | "projects"
-  | "reports"
-  | "members"
-  | "users"
-  | "audit"
-  | "backup"
-  | "system"
-  | "settings"
-  | "financial-approvals";
-const navigationSections = ["Overview", "Finance", "Ministry", "Administration"] as const;
-const navigationSectionByView: Record<View, typeof navigationSections[number]> = {
-  dashboard: "Overview",
-  transactions: "Finance",
-  offerings: "Finance",
-  donations: "Finance",
-  expenses: "Finance",
-  payables: "Finance",
-  accounts: "Finance",
-  categories: "Finance",
-  "payment-methods": "Finance",
-  reports: "Finance",
-  "financial-approvals": "Finance",
-  projects: "Ministry",
-  members: "Ministry",
-  users: "Administration",
-  audit: "Administration",
-  backup: "Administration",
-  system: "Administration",
-  settings: "Administration",
-};
 
 type TransactionFilter = "all" | "income" | "expenses" | "transfers";
 type ModalName = "transaction" | "transaction-details" | "transaction-edit" | "payable" | "payable-payment" | "payable-details" | "account" | null;
@@ -129,7 +88,6 @@ function ChurchWorkspace() {
   const [selectedPayable, setSelectedPayable] = useState<Payable | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [notice, setNotice] = useState("");
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [transactionFilter,setTransactionFilter]=useState<TransactionFilter>("all");
 
   const canWriteFinance=hasChurchRole(activeRole,financeWriterRoles);
@@ -149,13 +107,7 @@ function ChurchWorkspace() {
     finally { setLoading(false); }
   }, [activeChurch]);
   useEffect(() => { queueMicrotask(() => void refresh()); }, [refresh]);
-  useEffect(() => {
-    if (!mobileNavOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileNavOpen(false); };
-    document.addEventListener("keydown", closeOnEscape);
-    document.body.classList.add("drawer-open");
-    return () => { document.removeEventListener("keydown", closeOnEscape); document.body.classList.remove("drawer-open"); };
-  }, [mobileNavOpen]);
+
 
   const totals = useMemo(() => {
     const moneyIn = data.transactions.reduce((sum, transaction) => sum + Number(transaction.moneyIn || 0), 0);
@@ -283,7 +235,7 @@ expenses: [
 ],
 
 };
-  const navItems: [View, IconName, string][] = [
+  const navItems: NavigationItem[] = [
 ["dashboard", "dashboard", "Dashboard"],
 ["transactions","transactions","Transactions"],
 ["offerings","transactions","Offerings"],
@@ -318,29 +270,17 @@ navItems.push(
   };
 
   return <main className="app-shell">
-    <button type="button" className="mobile-menu-button" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded={mobileNavOpen} onClick={()=>setMobileNavOpen(true)}><span /><span /><span /></button>
-    <button type="button" className={`sidebar-overlay ${mobileNavOpen?"open":""}`} aria-label="Close navigation menu" onClick={()=>setMobileNavOpen(false)} />
-    <aside id="main-sidebar" className={`sidebar mobile-drawer ${mobileNavOpen?"open":""}`}><div className="brand"><ChurchBrand inverse/></div><ChurchWorkspaceSwitcher onSwitched={()=>setMobileNavOpen(false)}/><nav aria-label="Main navigation">
-        {navigationSections.map(section => (
-          <Fragment key={section}>
-            <p className="nav-section-label">{section}</p>
-            {navItems.filter(([key]) => navigationSectionByView[key] === section).map(([key, icon, label]) => (
-              <button
-                key={key}
-                title={label}
-                className={`nav-item ${view === key ? "active" : ""}`}
-                aria-current={view===key?"page":undefined}
-                onClick={() => { setView(key); setMobileNavOpen(false); }}
-              >
-                <span className="nav-icon"><AppIcon name={icon}/></span>
-                <span className="nav-label">{label}</span>
-              </button>
-            ))}
-          </Fragment>
-        ))}
-        <button className="nav-item logout-nav" onClick={()=>{setMobileNavOpen(false);void signOut();}}><span className="nav-icon"><AppIcon name="logout"/></span><span className="nav-label">Logout</span></button></nav><div className="sidebar-foot">{profile&&activeRole&&<UserProfileIndicator name={profile.fullName} email={profile.email} role={activeRole}/>}<div className="connection-state"><div className={`sync-dot ${connected ? "" : "pending"}`} /><span>{connected ? "Database connected" : "Connection pending"}</span></div></div></aside>
+    <Sidebar
+      view={view}
+      navItems={navItems}
+      onNavigate={setView}
+      profile={profile}
+      activeRole={activeRole}
+      connected={connected}
+      onSignOut={signOut}
+    />
     <section className="workspace">
-      <header className="topbar"><div className="welcome-heading"><div className="workspace-heading-line"><p className="eyebrow">{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><ActiveChurchIdentity/></div><h1>{headings[view][0]}</h1><p className="subhead">{headings[view][1]}</p></div><div className="topbar-actions"><ChurchWorkspaceSwitcher compact/>{profile&&activeRole&&<UserProfileIndicator name={profile.fullName} email={profile.email} role={activeRole} compact/>}{headerActions()}</div></header>
+      <Topbar heading={headings[view]} profile={profile} activeRole={activeRole} actions={headerActions()}/>
       {notice && <div className="toast" role="status">{notice}</div>}{error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void refresh()}>Try again</button></div>}
       {showFinanceNotice && <ReadOnlyNotice message={`${activeRole||"Your role"} can review financial records, but only Church Admin, Treasurer, and Encoder accounts can create or update them.`} />}
       {view === "accounts" && !canManageAccounts && <ReadOnlyNotice message={`${activeRole||"Your role"} can review account balances, but only Church Admin and Treasurer accounts can manage accounts.`} />}

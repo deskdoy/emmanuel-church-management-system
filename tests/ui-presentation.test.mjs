@@ -20,7 +20,12 @@ test("the signed-in user is represented by name, role, and initials",()=>{
   assert.match(profile,/initials/);
   assert.match(profile,/name\|\|email/);
   assert.match(profile,/\{role\}/);
-  assert.match(page,/UserProfileIndicator/);
+  const sidebar=read("src/components/layout/Sidebar.tsx"),topbar=read("src/components/layout/Topbar.tsx");
+  assert.match(page,/<Sidebar\b/);
+  assert.match(page,/<Topbar\b/);
+  for(const layout of [sidebar,topbar]){
+    assert.match(layout,/<UserProfileIndicator\s+name=\{profile\.fullName\}\s+email=\{profile\.email\}\s+role=\{activeRole\}/);
+  }
 });
 
 test("motion includes reduced-motion protection",()=>{

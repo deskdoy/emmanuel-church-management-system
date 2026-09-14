@@ -39,7 +39,7 @@ test("financial navigation and entry actions are restored", () => {
   assert.match(page, /New Transaction/);
   assert.match(page, /Money In/);
   assert.match(page, /Money Out/);
-  assert.match(page, /Logout/);
+  assert.match(read("src/components/layout/Sidebar.tsx"), /Logout/);
   assert.match(page, /Add Payable/);
   assert.match(page, /Record payment/);
   assert.match(payableDetails, /Payment history/);
@@ -88,11 +88,28 @@ test("password fields are hidden by default and have accessible visibility toggl
 
 test("mobile navigation uses a responsive drawer and overlay", () => {
   const page = read("app/page.tsx");
+  const sidebar = read("src/components/layout/Sidebar.tsx");
+  const navigation = read("src/components/layout/NavigationSections.tsx");
   const css = read("app/globals.css");
-  assert.match(page, /mobile-menu-button/);
-  assert.match(page, /sidebar-overlay/);
-  assert.match(page, /aria-controls="main-sidebar"/);
-  assert.match(page, /event\.key === "Escape"/);
+  assert.match(page, /<Sidebar\b/);
+  assert.match(page, /navItems=\{navItems\}/);
+  assert.match(page, /onNavigate=\{setView\}/);
+  assert.match(page, /onSignOut=\{signOut\}/);
+  assert.match(sidebar, /mobile-menu-button/);
+  assert.match(sidebar, /sidebar-overlay/);
+  assert.match(sidebar, /aria-controls="main-sidebar"/);
+  assert.match(sidebar, /aria-expanded=\{mobileNavOpen\}/);
+  assert.match(sidebar, /event\.key === "Escape"/);
+  assert.match(sidebar, /document\.body\.classList\.add\("drawer-open"\)/);
+  assert.match(sidebar, /document\.body\.classList\.remove\("drawer-open"\)/);
+  assert.match(sidebar, /document\.removeEventListener\("keydown", closeOnEscape\)/);
+  assert.match(sidebar, /onNavigate=\{key=>\{onNavigate\(key\);setMobileNavOpen\(false\);\}\}/);
+  assert.match(sidebar, /onClick=\{\(\)=>\{setMobileNavOpen\(false\);void onSignOut\(\);\}\}/);
+  assert.match(navigation, /navigationSections\.map/);
+  assert.match(navigation, /navItems\.filter\(\(\[key\]\) => navigationSectionByView\[key\] === section\)/);
+  assert.match(navigation, /view === key \? "active" : ""/);
+  assert.match(navigation, /aria-current=\{view===key\?"page":undefined\}/);
+  assert.match(navigation, /onClick=\{\(\) => onNavigate\(key\)\}/);
   assert.match(css, /sidebar\.mobile-drawer\.open/);
   assert.match(css, /translateX\(-105%\)/);
   assert.match(css, /@media\(max-width:720px\)/);
