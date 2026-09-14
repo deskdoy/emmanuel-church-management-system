@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../src/auth/AuthContext";
 import { useActiveChurch } from "../src/tenancy/ActiveChurchContext";
 import { accountManagerRoles, financeWriterRoles, hasChurchRole, projectManagerRoles } from "../src/tenancy/permissions";
@@ -48,6 +48,28 @@ type View =
   | "system"
   | "settings"
   | "financial-approvals";
+const navigationSections = ["Overview", "Finance", "Ministry", "Administration"] as const;
+const navigationSectionByView: Record<View, typeof navigationSections[number]> = {
+  dashboard: "Overview",
+  transactions: "Finance",
+  offerings: "Finance",
+  donations: "Finance",
+  expenses: "Finance",
+  payables: "Finance",
+  accounts: "Finance",
+  categories: "Finance",
+  "payment-methods": "Finance",
+  reports: "Finance",
+  "financial-approvals": "Finance",
+  projects: "Ministry",
+  members: "Ministry",
+  users: "Administration",
+  audit: "Administration",
+  backup: "Administration",
+  system: "Administration",
+  settings: "Administration",
+};
+
 type TransactionType = "Income" | "Expense" | "Transfer";
 type TransactionFilter = "all" | "income" | "expenses" | "transfers";
 type ModalName = "transaction" | "transaction-details" | "transaction-edit" | "payable" | "payable-payment" | "payable-details" | "account" | null;
@@ -295,7 +317,25 @@ navItems.push(
   return <main className="app-shell">
     <button type="button" className="mobile-menu-button" aria-label="Open navigation menu" aria-controls="main-sidebar" aria-expanded={mobileNavOpen} onClick={()=>setMobileNavOpen(true)}><span /><span /><span /></button>
     <button type="button" className={`sidebar-overlay ${mobileNavOpen?"open":""}`} aria-label="Close navigation menu" onClick={()=>setMobileNavOpen(false)} />
-    <aside id="main-sidebar" className={`sidebar mobile-drawer ${mobileNavOpen?"open":""}`}><div className="brand"><ChurchBrand inverse/></div><ChurchWorkspaceSwitcher onSwitched={()=>setMobileNavOpen(false)}/><nav aria-label="Main navigation"><p className="nav-section-label">Church management</p>{navItems.map(([key, icon, label]) => <button key={key} title={label} className={`nav-item ${view === key ? "active" : ""}`} aria-current={view===key?"page":undefined} onClick={() => { setView(key); setMobileNavOpen(false); }}><span className="nav-icon"><AppIcon name={icon}/></span><span className="nav-label">{label}</span></button>)}<button className="nav-item logout-nav" onClick={()=>{setMobileNavOpen(false);void signOut();}}><span className="nav-icon"><AppIcon name="logout"/></span><span className="nav-label">Logout</span></button></nav><div className="sidebar-foot">{profile&&activeRole&&<UserProfileIndicator name={profile.fullName} email={profile.email} role={activeRole}/>}<div className="connection-state"><div className={`sync-dot ${connected ? "" : "pending"}`} /><span>{connected ? "Database connected" : "Connection pending"}</span></div></div></aside>
+    <aside id="main-sidebar" className={`sidebar mobile-drawer ${mobileNavOpen?"open":""}`}><div className="brand"><ChurchBrand inverse/></div><ChurchWorkspaceSwitcher onSwitched={()=>setMobileNavOpen(false)}/><nav aria-label="Main navigation">
+        {navigationSections.map(section => (
+          <Fragment key={section}>
+            <p className="nav-section-label">{section}</p>
+            {navItems.filter(([key]) => navigationSectionByView[key] === section).map(([key, icon, label]) => (
+              <button
+                key={key}
+                title={label}
+                className={`nav-item ${view === key ? "active" : ""}`}
+                aria-current={view===key?"page":undefined}
+                onClick={() => { setView(key); setMobileNavOpen(false); }}
+              >
+                <span className="nav-icon"><AppIcon name={icon}/></span>
+                <span className="nav-label">{label}</span>
+              </button>
+            ))}
+          </Fragment>
+        ))}
+        <button className="nav-item logout-nav" onClick={()=>{setMobileNavOpen(false);void signOut();}}><span className="nav-icon"><AppIcon name="logout"/></span><span className="nav-label">Logout</span></button></nav><div className="sidebar-foot">{profile&&activeRole&&<UserProfileIndicator name={profile.fullName} email={profile.email} role={activeRole}/>}<div className="connection-state"><div className={`sync-dot ${connected ? "" : "pending"}`} /><span>{connected ? "Database connected" : "Connection pending"}</span></div></div></aside>
     <section className="workspace">
       <header className="topbar"><div className="welcome-heading"><div className="workspace-heading-line"><p className="eyebrow">{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><ActiveChurchIdentity/></div><h1>{headings[view][0]}</h1><p className="subhead">{headings[view][1]}</p></div><div className="topbar-actions"><ChurchWorkspaceSwitcher compact/>{profile&&activeRole&&<UserProfileIndicator name={profile.fullName} email={profile.email} role={activeRole} compact/>}{headerActions()}</div></header>
       {notice && <div className="toast" role="status">{notice}</div>}{error && <div className="error-banner" role="alert"><span>{error}</span><button onClick={() => void refresh()}>Try again</button></div>}
