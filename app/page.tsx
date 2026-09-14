@@ -343,7 +343,18 @@ navItems.push(
       {view === "accounts" && !canManageAccounts && <ReadOnlyNotice message={`${activeRole||"Your role"} can review account balances, but only Church Admin and Treasurer accounts can manage accounts.`} />}
 
       <PageTransition key={view} pageKey={view}>
-      {view === "dashboard" && activeChurch&&<DashboardView churchId={activeChurch.id} data={data} isAdmin={isChurchAdmin} canApproveFinance={canApproveFinance} dataLoading={loading} onViewTransactions={() => setView("transactions")} />}
+      {view === "dashboard" && activeChurch&&<DashboardView
+        churchId={activeChurch.id}
+        data={data}
+        isAdmin={isChurchAdmin}
+        canWriteFinance={canWriteFinance}
+        canApproveFinance={canApproveFinance}
+        dataLoading={loading}
+        onViewTransactions={() => setView("transactions")}
+        onRecordIncome={() => openTransaction("Income")}
+        onRecordExpense={() => openTransaction("Expense")}
+        onReviewApprovals={() => setView("financial-approvals")}
+      />}
       {view === "transactions" && <div className="transaction-workspace"><section className="transaction-overview"><article><span className="transaction-overview-icon income"><AppIcon name="transactions"/></span><div><small>Money In</small><strong>{peso(totals.moneyIn)}</strong><p>{income.length} recorded entr{income.length===1?"y":"ies"}</p></div></article><article><span className="transaction-overview-icon expense"><AppIcon name="transactions"/></span><div><small>Money Out</small><strong>{peso(totals.moneyOut)}</strong><p>{expenses.length} recorded entr{expenses.length===1?"y":"ies"}</p></div></article><article><span className="transaction-overview-icon transfer"><AppIcon name="transactions"/></span><div><small>Account Transfers</small><strong>{data.transfers.length}</strong><p>Balance movements only</p></div></article></section><div className="transaction-toolbar"><div className="module-tabs transaction-filters" aria-label="Transaction type"><button className={transactionFilter==="all"?"active":""} onClick={()=>setTransactionFilter("all")}>All</button><button className={transactionFilter==="income"?"active":""} onClick={()=>setTransactionFilter("income")}>Money In <span>{income.length}</span></button><button className={transactionFilter==="expenses"?"active":""} onClick={()=>setTransactionFilter("expenses")}>Money Out <span>{expenses.length}</span></button><button className={transactionFilter==="transfers"?"active":""} onClick={()=>setTransactionFilter("transfers")}>Transfers <span>{data.transfers.length}</span></button></div><p>Choose a transaction type to review its ledger.</p></div><div className="transaction-ledgers">{["all","income"].includes(transactionFilter)&&<section className="panel table-panel"><div className="panel-head"><div><p className="eyebrow">{income.length} records</p><h2>Money In</h2></div><strong className="panel-total income-text">{peso(totals.moneyIn)}</strong></div><TransactionTable transactions={income} emptyMessage="Record tithes, offerings, donations, and other church income here." canEdit={canWriteFinance} onDetails={openTransactionDetails} onEdit={openTransactionEdit}/></section>}{["all","expenses"].includes(transactionFilter)&&<section className="panel table-panel"><div className="panel-head"><div><p className="eyebrow">{expenses.length} records</p><h2>Money Out</h2></div><strong className="panel-total">{peso(totals.moneyOut)}</strong></div><TransactionTable transactions={expenses} emptyMessage="Church expenses and vendor payments will be organized here." canEdit={canWriteFinance} onDetails={openTransactionDetails} onEdit={openTransactionEdit}/></section>}{["all","transfers"].includes(transactionFilter)&&<TransferHistory transfers={data.transfers}/>}</div></div>}
       {view === "offerings" &&
  activeChurch &&
