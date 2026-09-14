@@ -6,11 +6,33 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "
 
 test("leadership dashboard exposes the requested KPIs and visual summaries", () => {
   const dashboard = read("src/components/DashboardView.tsx");
-  for (const label of ["Current Balance", "Current Month Income", "Current Month Expenses", "Outstanding Payables", "Active Projects", "Income trend", "Expense categories", "Account balances", "Recent activity"]) {
-    assert.match(dashboard, new RegExp(label));
+  const sections = {
+    DashboardMetrics: ["Current Balance", "Current Month Income", "Current Month Expenses", "Outstanding Payables", "Active Projects", "Pending Financial Approvals"],
+    DashboardQuickActions: ["Quick Actions", "Record Income", "Record Expense", "Review Financial Approvals"],
+    FinancialTrendChart: ["Income trend"],
+    ExpenseCategoryPanel: ["Expense categories"],
+    AccountBalancePanel: ["Account balances"],
+    DashboardActivityFeed: ["Recent activity"],
+  };
+  for (const [component, labels] of Object.entries(sections)) {
+    const section = read(`src/components/dashboard/${component}.tsx`);
+    assert.match(dashboard, new RegExp(`<${component}\\b`));
+    assert.match(dashboard, new RegExp(`from "\\./dashboard/${component}"`));
+    for (const label of labels) assert.match(section, new RegExp(label));
   }
+  const activity = read("src/components/dashboard/DashboardActivityFeed.tsx");
+  const metrics = read("src/components/dashboard/DashboardMetrics.tsx");
+  const actions = read("src/components/dashboard/DashboardQuickActions.tsx");
   assert.match(dashboard, /isAdmin\?loadDashboardAuditActivity\(churchId\):Promise\.resolve\(\[\]\)/);
-  assert.match(dashboard, /User and audit activity is visible only to administrators/);
+  assert.match(dashboard, /<DashboardActivityFeed\s+isAdmin=\{isAdmin\}/);
+  assert.match(activity, /isAdmin&&\(latestUserActivity/);
+  assert.match(activity, /User and audit activity is visible only to administrators/);
+  assert.match(metrics, /canApproveFinance&&<article/);
+  assert.match(actions, /canApproveFinance&&<button/);
+  assert.match(actions, /disabled=\{!canWriteFinance\} onClick=\{onRecordIncome\}/);
+  assert.match(actions, /disabled=\{!canWriteFinance\} onClick=\{onRecordExpense\}/);
+  assert.match(dashboard, /<DashboardQuickActions\s+canWriteFinance=\{canWriteFinance\}\s+canApproveFinance=\{canApproveFinance\}/);
+  assert.match(dashboard, /<DashboardMetrics\s+metricsClassName=\{metricsClassName\}\s+canApproveFinance=\{canApproveFinance\}/);
 });
 
 test("dashboard audit summaries avoid sensitive before and after values", () => {

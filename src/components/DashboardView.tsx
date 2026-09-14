@@ -3,20 +3,14 @@ import { buildAccountSummaries, buildDashboardKpis, buildExpenseCategoryBreakdow
 import { loadDashboardAuditActivity } from "../services/auditLogs";
 import { loadProjects } from "../services/projects";
 import type { CashFlowData, DashboardAuditEvent, Project, ProjectGoalView } from "../types";
+import { DashboardMetrics, DashboardMetricsSkeleton } from "./dashboard/DashboardMetrics";
+import { DashboardQuickActions } from "./dashboard/DashboardQuickActions";
+import { FinancialTrendChart } from "./dashboard/FinancialTrendChart";
+import { ExpenseCategoryPanel } from "./dashboard/ExpenseCategoryPanel";
+import { AccountBalancePanel } from "./dashboard/AccountBalancePanel";
+import { DashboardActivityFeed } from "./dashboard/DashboardActivityFeed";
 import { ProjectGoalsPanel } from "./ProjectGoalsPanel";
-import { EmptyState } from "./ui/EmptyState";
 import { LoadingSkeleton } from "./ui/LoadingSkeleton";
-
-const peso=(value:number)=>new Intl.NumberFormat("en-PH",{style:"currency",currency:"PHP"}).format(value||0);
-const dateTimeLabel=(value:string)=>new Intl.DateTimeFormat("en-PH",{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));
-
-function VisualBars({rows,max}:{rows:{label:string;value:number}[];max:number}) {
-  return <div className="dashboard-visual-bars">{rows.map(row=><div key={row.label}><span>{row.label}</span><i><em style={{width:`${Math.max(row.value?3:0,row.value/max*100)}%`}}/></i><b>{peso(row.value)}</b></div>)}{!rows.length&&<EmptyState compact title="Insights will appear here" description="Record your first financial activity to begin building this view."/>}</div>;
-}
-
-function ActivityItem({icon,title,detail,amount,actor}:{icon:string;title:string;detail:string;amount?:number;actor?:string}) {
-  return <article className="leadership-activity"><span aria-hidden="true">{icon}</span><div><b>{title}</b><small>{detail}</small>{actor&&<small>Recorded by {actor}</small>}</div>{amount!==undefined&&<strong>{peso(amount)}</strong>}</article>;
-}
 
 type DashboardViewProps = {
   churchId:string;
@@ -48,21 +42,35 @@ export function DashboardView({churchId,data,isAdmin,canWriteFinance,canApproveF
   const latestUserActivity=auditEvents.find(event=>["church_memberships","users","access_requests"].includes(event.tableName));
   const actorFor=(tables:string[],recordId:string|undefined)=>recordId?auditEvents.find(event=>tables.includes(event.tableName)&&event.recordId===recordId)?.actorName:"";
   const goals:ProjectGoalView[]=projects.flatMap(project=>project.funding.goalAmount!==null&&project.funding.currentAmountRaised!==null&&project.funding.progressPercentage!==null?[{projectId:project.id,projectName:project.name,goalAmount:project.funding.goalAmount,amountRaised:project.funding.currentAmountRaised,progressPercentage:project.funding.progressPercentage,targetDate:project.funding.targetDate}]:[]);
-  if(dataLoading)return <section className="leadership-dashboard dashboard-loading" aria-busy="true"><div className={`${metricsClassName} skeleton-metrics`}>{Array.from({length:canApproveFinance?6:5},(_,index)=><article className="metric-card" key={index}><LoadingSkeleton rows={1} label="Loading financial summary"/></article>)}</div><section className="panel"><LoadingSkeleton rows={5} label="Loading dashboard insights"/></section></section>;
+  if(dataLoading)return <section className="leadership-dashboard dashboard-loading" aria-busy="true"><DashboardMetricsSkeleton metricsClassName={metricsClassName} canApproveFinance={canApproveFinance}/><section className="panel"><LoadingSkeleton rows={5} label="Loading dashboard insights"/></section></section>;
   return <section className="leadership-dashboard">{error&&<div className="error-banner" role="alert"><span>{error}</span><button onClick={()=>void refresh()}>Try again</button></div>}
-    <section className="panel dashboard-quick-actions" aria-labelledby="dashboard-quick-actions-heading">
-      <h2 id="dashboard-quick-actions-heading">Quick Actions</h2>
-      <div className="dashboard-quick-action-buttons">
-        <button type="button" className="primary-button" disabled={!canWriteFinance} onClick={onRecordIncome}>
-          Record Income
-        </button>
-        <button type="button" className="outline-button" disabled={!canWriteFinance} onClick={onRecordExpense}>
-          Record Expense
-        </button>
-        {canApproveFinance&&<button type="button" className="outline-button" onClick={onReviewApprovals}>
-          Review Financial Approvals
-        </button>}
-      </div>
+    <DashboardQuickActions
+      canWriteFinance={canWriteFinance}
+      canApproveFinance={canApproveFinance}
+      onRecordIncome={onRecordIncome}
+      onRecordExpense={onRecordExpense}
+      onReviewApprovals={onReviewApprovals}
+    />
+    <DashboardMetrics
+      metricsClassName={metricsClassName}
+      canApproveFinance={canApproveFinance}
+      kpis={kpis}
+      payables={data.payables}
+      pendingApprovalCount={pendingApprovalCount}
+    />
+    <section className="dashboard-reporting-grid">
+      <FinancialTrendChart trend={trend} trendMax={trendMax}/>
+      <ExpenseCategoryPanel expenses={expenses} expenseMax={expenseMax}/>
+      <AccountBalancePanel accounts={accounts} accountMax={accountMax}/>
     </section>
-    <section className={metricsClassName}><article className="metric-card featured"><div className="metric-label">Current Balance <span>↗</span></div><strong>{peso(kpis.currentBalance)}</strong><p>Across all recorded accounts</p></article><article className="metric-card"><div className="metric-label">Current Month Income</div><strong className="income-text">{peso(kpis.currentMonthIncome)}</strong><p>Transfers excluded</p></article><article className="metric-card"><div className="metric-label">Current Month Expenses</div><strong>{peso(kpis.currentMonthExpenses)}</strong><p>Transfers excluded</p></article><article className="metric-card"><div className="metric-label">Outstanding Payables</div><strong>{peso(kpis.outstandingPayables)}</strong><p>{data.payables.filter(payable=>payable.balance>0).length} open items</p></article><article className="metric-card"><div className="metric-label">Active Projects</div><strong>{kpis.activeProjects}</strong><p>Current church initiatives</p></article>{canApproveFinance&&<article className="metric-card"><div className="metric-label">Pending Financial Approvals</div><strong>{pendingApprovalCount}</strong><p>Expenses awaiting review across all dates</p></article>}</section><section className="dashboard-reporting-grid"><article className="panel dashboard-trend"><div className="panel-head"><div><p className="eyebrow">Six-month view</p><h2>Income trend</h2></div><span className="period-button">Income vs expenses</span></div>{trend.some(row=>row.income||row.expenses)?<><div className="live-chart"><div className="grid-lines"><i/><i/><i/><i/></div>{trend.map(row=><div className="month-group" key={row.month}><div className="month-bars"><i style={{height:`${Math.max(row.income?5:1,row.income/trendMax*100)}%`}}/><i className="expense-bar" style={{height:`${Math.max(row.expenses?5:1,row.expenses/trendMax*100)}%`}}/></div><span>{row.label}</span></div>)}</div><div className="legend"><span><i/>Income</span><span><i className="legend-out"/>Expenses</span></div></>:<EmptyState compact title="Your financial story starts here" description="Income and expense trends will appear after your first transactions are recorded."/>}</article><article className="panel"><div className="panel-head"><div><p className="eyebrow">Current month</p><h2>Expense categories</h2></div></div><VisualBars rows={expenses.slice(0,6).map(row=>({label:row.category,value:row.amount}))} max={expenseMax}/></article><article className="panel"><div className="panel-head"><div><p className="eyebrow">Balance distribution</p><h2>Account balances</h2></div></div><VisualBars rows={accounts.map(row=>({label:row.name,value:row.currentBalance}))} max={accountMax}/></article></section><section className="panel leadership-activity-panel"><div className="panel-head"><div><p className="eyebrow">Latest recorded events</p><h2>Recent activity</h2></div><button className="text-button" onClick={onViewTransactions}>View transactions →</button></div><div className="leadership-activity-grid">{latestTransaction?<ActivityItem icon={latestTransaction.type==="Income"?"↓":"↑"} title={`Recent ${latestTransaction.type==="Income"?"money in":"money out"}`} detail={`${latestTransaction.category} · ${dateTimeLabel(latestTransaction.createdAt)}`} amount={latestTransaction.moneyIn||latestTransaction.moneyOut} actor={isAdmin?actorFor([latestTransaction.source],latestTransaction.id):undefined}/>:<ActivityItem icon="↕" title="Recent transaction" detail="No transaction recorded yet."/>}{latestPayment?<ActivityItem icon="✓" title="Recent payable payment" detail={`${latestPayment.vendor} · ${dateTimeLabel(latestPayment.createdAt)}`} amount={latestPayment.amount} actor={isAdmin?actorFor(["payable_payments"],latestPayment.id):undefined}/>:<ActivityItem icon="✓" title="Recent payment" detail="No payable payment recorded yet."/>}{latestTransfer?<ActivityItem icon="⇄" title="Recent transfer" detail={`${latestTransfer.fromAccount} to ${latestTransfer.toAccount} · ${dateTimeLabel(latestTransfer.createdAt)}`} amount={latestTransfer.amount} actor={isAdmin?actorFor(["account_transfers"],latestTransfer.id):undefined}/>:<ActivityItem icon="⇄" title="Recent transfer" detail="No transfer recorded yet."/>}{isAdmin&&(latestUserActivity?<ActivityItem icon="♙" title="Recent user activity" detail={`${latestUserActivity.action.toLowerCase()} · ${dateTimeLabel(latestUserActivity.createdAt)}`} actor={latestUserActivity.actorName}/>:<ActivityItem icon="♙" title="Recent user activity" detail="No recent user changes."/>)}</div>{!isAdmin&&<p className="activity-privacy-note">User and audit activity is visible only to administrators.</p>}</section><ProjectGoalsPanel goals={goals}/>{loading&&<div className="dashboard-refresh" role="status"><span className="inline-spinner"/>Refreshing leadership insights…</div>}</section>;
+    <DashboardActivityFeed
+      isAdmin={isAdmin}
+      latestTransaction={latestTransaction}
+      latestPayment={latestPayment}
+      latestTransfer={latestTransfer}
+      latestUserActivity={latestUserActivity}
+      actorFor={actorFor}
+      onViewTransactions={onViewTransactions}
+    />
+    <ProjectGoalsPanel goals={goals}/>{loading&&<div className="dashboard-refresh" role="status"><span className="inline-spinner"/>Refreshing leadership insights…</div>}</section>;
 }

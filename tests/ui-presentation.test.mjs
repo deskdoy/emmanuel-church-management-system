@@ -47,7 +47,8 @@ test("mobile tables and forms use responsive presentation",()=>{
 test("first-use loading and empty states are reusable",()=>{
   const dashboard=read("src/components/DashboardView.tsx"),page=read("app/page.tsx"),users=read("src/components/UsersView.tsx");
   assert.match(dashboard,/LoadingSkeleton/);
-  assert.match(dashboard,/Your financial story starts here/);
+  assert.match(dashboard,/<FinancialTrendChart\b/);
+  assert.match(read("src/components/dashboard/FinancialTrendChart.tsx"),/Your financial story starts here/);
   assert.match(page,/Set up your first account/);
   assert.match(users,/No church members yet/);
 });
