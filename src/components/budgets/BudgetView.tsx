@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { createBudget, loadBudgets, type Budget, type BudgetInput } from "../../services/budgets";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
 import { accountManagerRoles, hasChurchRole } from "../../tenancy/permissions";
@@ -7,6 +7,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 import { BudgetBuilder } from "./BudgetBuilder";
 import { BudgetForm } from "./BudgetForm";
+import { BudgetVsActual } from "./BudgetVsActual";
 import "./budgets.css";
 
 export function BudgetView({ churchId }: { churchId: string }) {
@@ -21,6 +22,8 @@ export function BudgetView({ churchId }: { churchId: string }) {
 function BudgetWorkspace({ churchId, role }: { churchId: string; role: RoleName }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"builder" | "actual">("builder");
+  const tabId = useId();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
@@ -58,17 +61,36 @@ function BudgetWorkspace({ churchId, role }: { churchId: string; role: RoleName 
     } finally { setSaving(false); }
   };
 
-  if (selected) return <BudgetBuilder
-    churchId={churchId}
-    budget={selected}
-    onBudgetChange={budget => setBudgets(rows => rows.map(row => row.id === budget.id ? budget : row))}
-    onBack={() => { setSelectedId(null); setNotice(""); }}
-    onDeleted={() => {
-      setBudgets(rows => rows.filter(row => row.id !== selected.id));
-      setSelectedId(null);
-      setNotice("Budget deleted.");
-    }}
-  />;
+  const backToBudgets = () => { setSelectedId(null); setTab("builder"); setNotice(""); };
+  if (selected) return <section className="budget-workspace" aria-label="Selected budget">
+    <div className="module-tabs" role="tablist" aria-label="Budget sections" onKeyDown={event => {
+      const target = event.key === "Home" ? "builder" : event.key === "End" ? "actual"
+        : event.key === "ArrowLeft" || event.key === "ArrowRight" ? tab === "builder" ? "actual" : "builder" : null;
+      if (!target) return;
+      event.preventDefault();
+      setTab(target);
+      event.currentTarget.querySelector<HTMLButtonElement>(`[data-budget-tab="${target}"]`)?.focus();
+    }}>
+      <button id={`${tabId}-builder-tab`} data-budget-tab="builder" role="tab" aria-selected={tab === "builder"} aria-controls={`${tabId}-builder-panel`} tabIndex={tab === "builder" ? 0 : -1} className={tab === "builder" ? "active" : ""} onClick={() => setTab("builder")}>Budget builder</button>
+      <button id={`${tabId}-actual-tab`} data-budget-tab="actual" role="tab" aria-selected={tab === "actual"} aria-controls={`${tabId}-actual-panel`} tabIndex={tab === "actual" ? 0 : -1} className={tab === "actual" ? "active" : ""} onClick={() => setTab("actual")}>Budget vs Actual</button>
+    </div>
+    <div id={`${tabId}-builder-panel`} role="tabpanel" aria-labelledby={`${tabId}-builder-tab`} hidden={tab !== "builder"}>
+      <BudgetBuilder
+        churchId={churchId}
+        budget={selected}
+        onBudgetChange={budget => setBudgets(rows => rows.map(row => row.id === budget.id ? budget : row))}
+        onBack={backToBudgets}
+        onDeleted={() => {
+          setBudgets(rows => rows.filter(row => row.id !== selected.id));
+          backToBudgets();
+          setNotice("Budget deleted.");
+        }}
+      />
+    </div>
+    <div id={`${tabId}-actual-panel`} role="tabpanel" aria-labelledby={`${tabId}-actual-tab`} hidden={tab !== "actual"}>
+      {tab === "actual" && <BudgetVsActual churchId={churchId} budget={selected} onBack={backToBudgets} />}
+    </div>
+  </section>;
 
   return <section className="budget-workspace" aria-label="Budget Planning">
     <div className="panel">

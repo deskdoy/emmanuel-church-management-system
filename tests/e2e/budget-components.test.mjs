@@ -18,6 +18,7 @@ before(async () => {
       name: "budget-component-fixtures", enforce: "pre",
       resolveId(id) {
         if (id === "budget-ui-entry" || id.replaceAll("\\", "/").endsWith("/budget-ui-entry")) return "\0budget-ui-entry";
+        if (id.endsWith("/services/cashflow")) return "\0budget-cashflow";
         if (id.endsWith("/services/budgets")) return "\0budget-service";
         if (id.endsWith("/tenancy/ActiveChurchContext")) return "\0budget-context";
         if (id.endsWith("/lib/supabase")) return "\0budget-categories";
@@ -34,6 +35,7 @@ before(async () => {
           };
         `;
         if (id === "\0budget-service") return methods.map(name => `export const ${name} = (...args) => window.budgetCall("${name}", args);`).join("\n");
+        if (id === "\0budget-cashflow") return 'export const loadCashFlow = churchId => window.budgetCall("loadCashFlow", [churchId]);';
         if (id === "\0budget-context") return "export const useActiveChurch = () => window.scope;";
         if (id === "\0budget-categories") return `export const getSupabase = () => ({ from: table => ({ select: () => ({ eq: (column, churchId) => ({ order: async () => {
           window.calls.push({ name: "categories", args: [table, column, churchId] });
@@ -62,10 +64,16 @@ async function pageFor(role = "Admin") {
     window.calls = [];
     window.budgets = [];
     window.lines = [];
+    window.transactions = [];
     window.categories = [{ id: "cat-a", name: "Ministry", transaction_type: "Expense", is_active: true }, { id: "cat-b", name: "Giving", transaction_type: "Income", is_active: true }];
     window.budgetCall = async (name, args) => {
       window.calls.push({ name, args });
       if (window.fail === name) throw new Error("Test permission failure");
+      if (name === "loadCashFlow") {
+        const data = { transactions: window.transactions, accounts: [], transfers: [], payables: [], categories: window.categories.map(category => ({ id: category.id, name: category.name, type: category.transaction_type, group: category.transaction_type, active: category.is_active ? "Yes" : "No" })) };
+        if (window.deferCashFlow) return new Promise(resolve => { window.resolveCashFlow = () => resolve(data); });
+        return data;
+      }
       if (name === "loadBudgets") {
         if (window.deferLoad) return new Promise(resolve => { window.resolveLoad = resolve; });
         return window.budgets.filter(row => row.churchId === args[0]);
@@ -192,4 +200,78 @@ test("loading, failed writes, retry, and church changes do not expose stale budg
     await page.getByRole("heading", { name: "Choose a church workspace" }).waitFor();
     assert.equal(await page.evaluate(() => window.calls.length), previousCount);
   } catch (error) { console.error(await page.locator("body").innerText()); throw error; } finally { await page.close(); }
+});
+
+
+test("Budget vs Actual renders approved expense comparisons and preserves unsaved builder input", async () => {
+  const page = await pageFor();
+  try {
+    await createPlan(page);
+    await addLine(page);
+    await page.evaluate(() => {
+      window.categories.push({ id: "repairs", name: "Repairs", transaction_type: "Expense", is_active: true });
+      const expense = { type: "Expense", category: "Ministry", date: "2026-06-01", approvalStatus: "approved", moneyOut: 200, moneyIn: 0 };
+      window.transactions = [expense, { ...expense, moneyOut: 5000, approvalStatus: "pending" }, { ...expense, moneyOut: 9000, approvalStatus: "rejected" }, { ...expense, type: "Income", category: "Giving", moneyIn: 10000, moneyOut: 0 }, { ...expense, category: "Repairs", moneyOut: 75 }];
+    });
+    await page.getByRole("button", { name: "Edit details", exact: true }).click();
+    await page.getByLabel("Budget name", { exact: true }).fill("Unsaved draft title");
+    await page.getByRole("tab", { name: "Budget vs Actual", exact: true }).click();
+    const report = page.getByRole("region", { name: "Budget vs Actual report", exact: true });
+    await report.locator("tbody").getByText("Ministry", { exact: true }).waitFor();
+    const ministry = report.locator("tbody tr").filter({ hasText: "Ministry" });
+    assert.deepEqual(await ministry.locator("td").allTextContents(), ["Ministry", "\u20b1500.25", "\u20b1200.00", "\u20b1300.25", "39.98%", "Under budget"]);
+    const repairs = report.locator("tbody tr").filter({ hasText: "Repairs" });
+    assert.deepEqual(await repairs.locator("td").allTextContents(), ["Repairs", "\u20b10.00", "\u20b175.00", "-\u20b175.00", "Not applicable", "Over budget"]);
+    assert.equal(await report.locator("tbody").getByText("Giving", { exact: true }).count(), 0);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    const calls = await page.evaluate(() => window.calls.filter(call => call.name === "loadCashFlow" || call.name === "loadBudgetLines"));
+    assert.ok(calls.some(call => call.name === "loadCashFlow"));
+    for (const call of calls) assert.equal(call.args[0], "church-a");
+    await page.getByRole("tab", { name: "Budget vs Actual", exact: true }).press("ArrowLeft");
+    assert.equal(await page.getByRole("tab", { name: "Budget builder", exact: true }).getAttribute("aria-selected"), "true");
+    assert.equal(await page.getByLabel("Budget name", { exact: true }).inputValue(), "Unsaved draft title");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  } finally { await page.close(); }
+});
+
+test("Budget vs Actual supports read-only roles, loading, empty results, and retry", async () => {
+  const page = await pageFor();
+  try {
+    await createPlan(page);
+    await page.evaluate(() => { window.deferCashFlow = true; });
+    await page.getByRole("tab", { name: "Budget vs Actual", exact: true }).click();
+    await page.getByRole("status", { name: "Loading budget vs actual" }).waitFor();
+    await page.evaluate(() => { window.deferCashFlow = false; window.resolveCashFlow(); });
+    await page.getByRole("heading", { name: "No expense budget activity" }).waitFor();
+    await page.evaluate(() => { window.fail = "loadCashFlow"; });
+    await page.getByRole("button", { name: "Refresh report", exact: true }).click();
+    await page.getByRole("alert").filter({ hasText: "Test permission failure" }).waitFor();
+    await page.evaluate(() => { window.fail = null; });
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await page.getByRole("heading", { name: "No expense budget activity" }).waitFor();
+    for (const role of ["Treasurer", "Pastor", "Secretary", "Encoder", "Viewer"]) {
+      await page.evaluate(role => window.renderBudget(role), role);
+      await page.getByRole("button", { name: "View budget", exact: true }).click();
+      await page.getByRole("tab", { name: "Budget vs Actual", exact: true }).click();
+      await page.getByRole("heading", { name: "No expense budget activity" }).waitFor();
+      assert.equal(await page.getByRole("region", { name: "Budget vs Actual report" }).getByRole("button", { name: /Edit|Delete|Approve|Save/ }).count(), 0);
+    }
+  } finally { await page.close(); }
+});
+
+test("a report request completing after a church switch cannot display old church amounts", async () => {
+  const page = await pageFor();
+  try {
+    await createPlan(page);
+    await addLine(page);
+    await page.evaluate(() => { window.deferCashFlow = true; });
+    await page.getByRole("tab", { name: "Budget vs Actual", exact: true }).click();
+    await page.getByRole("status", { name: "Loading budget vs actual" }).waitFor();
+    await page.evaluate(() => window.renderBudget("Admin", "church-b"));
+    await page.getByRole("heading", { name: "No budgets yet" }).waitFor();
+    await page.evaluate(() => window.resolveCashFlow());
+    await page.waitForTimeout(50);
+    assert.equal(await page.getByRole("region", { name: "Budget vs Actual report" }).count(), 0);
+    assert.equal(await page.getByText("Annual ministry plan", { exact: true }).count(), 0);
+  } finally { await page.close(); }
 });

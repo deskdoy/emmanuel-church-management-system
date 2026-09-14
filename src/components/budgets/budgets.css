@@ -9,3 +9,8 @@
 .budget-workspace .budget-notes{white-space:pre-wrap;overflow-wrap:anywhere}
 .budget-workspace .project-card h3{overflow-wrap:anywhere}
 @media(max-width:720px){.budget-summary{grid-template-columns:1fr}.budget-toolbar{align-items:flex-start}.budget-actions>button{flex:1}.budget-workspace .panel-head{gap:14px}}
+
+.budget-workspace>[role="tabpanel"]{min-width:0}
+.budget-comparison{min-width:0;min-height:0}
+.budget-over{color:var(--red)}
+.status.budget-status-over{background:#f8e9e6;color:var(--red)}
