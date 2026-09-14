@@ -1,8 +1,7 @@
 "use client";
 
-import { FormEvent, Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../src/auth/AuthContext";
-import { supabase } from "../src/lib/supabase";
 import { useActiveChurch } from "../src/tenancy/ActiveChurchContext";
 import { accountManagerRoles, financeWriterRoles, hasChurchRole, projectManagerRoles } from "../src/tenancy/permissions";
 import { AuditLogsView } from "../src/components/AuditLogsView";
@@ -21,13 +20,20 @@ import { DonationsView } from "../src/components/DonationsView";
 import { ExpensesView } from "../src/components/ExpensesView";
 import { UsersView } from "../src/components/UsersView";
 import { PlatformAdministrationView } from "../src/components/PlatformAdministrationView";
+import { TransactionForm, type TransactionType } from "../src/components/transactions/TransactionForm";
+import { TransactionDetails } from "../src/components/transactions/TransactionDetails";
+import { PayableForm } from "../src/components/transactions/PayableForm";
+import { PayablePaymentForm } from "../src/components/transactions/PayablePaymentForm";
+import { PayableDetails } from "../src/components/transactions/PayableDetails";
+import { AccountForm } from "../src/components/transactions/AccountForm";
+import { dateLabel, peso } from "../src/components/transactions/formatters";
 import { AppIcon, type IconName } from "../src/components/ui/AppIcon";
 import { ChurchBrand } from "../src/components/ui/ChurchBrand";
 import { EmptyState } from "../src/components/ui/EmptyState";
 import { PageTransition } from "../src/components/ui/PageTransition";
 import { UserProfileIndicator } from "../src/components/ui/UserProfileIndicator";
 import { ActiveChurchIdentity, ChurchWorkspaceSwitcher } from "../src/components/tenancy/ChurchWorkspaceSwitcher";
-import { addPayable, addTransaction, addTransfer, createAccount, extractSpecifiedDetails, isOtherCategory, loadCashFlow, recordPayablePayment, stripSpecifiedDetails, updateAccount, updateTransaction } from "../src/services/cashflow";
+import { addPayable, addTransaction, addTransfer, createAccount, loadCashFlow, recordPayablePayment, updateAccount, updateTransaction } from "../src/services/cashflow";
 import type { Account, AccountTransfer, CashFlowData as Data, CashFlowMutation, Payable, Transaction } from "../src/types";
 
 type View =
@@ -71,14 +77,10 @@ const navigationSectionByView: Record<View, typeof navigationSections[number]> =
   settings: "Administration",
 };
 
-type TransactionType = "Income" | "Expense" | "Transfer";
 type TransactionFilter = "all" | "income" | "expenses" | "transfers";
 type ModalName = "transaction" | "transaction-details" | "transaction-edit" | "payable" | "payable-payment" | "payable-details" | "account" | null;
 
 const emptyData: Data = { transactions: [], transfers: [], payables: [], accounts: [], categories: [] };
-const today = new Date().toISOString().slice(0, 10);
-const peso = (value: number) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(Number(value) || 0);
-const dateLabel = (value: string) => value ? new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${value}T00:00:00`)) : "—";
 
 function Modal({ title, eyebrow = "New record", onClose, children }: { title: string; eyebrow?: string; onClose: () => void; children: ReactNode }) {
   return <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}>
@@ -452,164 +454,4 @@ navItems.push(
     {modal === "account" && canManageAccounts && <Modal eyebrow="Account management" title={selectedAccount ? "Edit account" : "Add account"} onClose={closeModal}><AccountForm account={selectedAccount} saving={saving} onSubmit={save} /></Modal>}
     {loading && <div className="loading-line" />}
   </main>;
-}
-
-function TransactionForm({ data, initialType, transaction, saving, onSubmit }: { data: Data; initialType: TransactionType; transaction?:Transaction; saving: boolean; onSubmit: (payload: CashFlowMutation) => Promise<void> }) {
-  const [type, setType] = useState<TransactionType>(initialType);
-  const {activeChurch}=useActiveChurch();
-  const churchId=activeChurch?.id;
-  const [configuredPaymentMethods,setConfiguredPaymentMethods]=useState<{churchId:string;names:string[];failed:boolean}|null>(null);
-  useEffect(()=>{
-    if(!supabase||!churchId)return;
-    const db=supabase;
-    let cancelled=false;
-    void (async()=>{
-      try{
-        const {data:methods,error}=await db.from("payment_methods").select("name").eq("church_id",churchId).eq("is_active",true).order("name");
-        if(error)throw error;
-        if(!cancelled)setConfiguredPaymentMethods({churchId,names:(methods||[]).map(method=>method.name),failed:false});
-      }catch{
-        if(!cancelled)setConfiguredPaymentMethods({churchId,names:[],failed:true});
-      }
-    })();
-    return()=>{cancelled=true;};
-  },[churchId]);
-  const currentPaymentMethods=configuredPaymentMethods?.churchId===churchId?configuredPaymentMethods:null;
-  const paymentMethods=[...new Set([transaction?.paymentMethod||"Cash",...(currentPaymentMethods?.names||[])])];
-  const sourceCategories=(nextType:TransactionType)=>data.categories.filter(category=>{
-    if(nextType==="Transfer")return false;
-    if(category.type!==nextType||category.active==="No")return false;
-    if(!transaction||transaction.source==="expenses")return true;
-    const donationCategory=["Donations","Fundraising"].includes(category.name);
-    return transaction.source==="donations"?donationCategory:!donationCategory;
-  });
-  const initialCategory=transaction?.category||sourceCategories(initialType)[0]?.name||"";
-  const [categoryName,setCategoryName]=useState(initialCategory);
-  const accounts = data.accounts.filter(account => account.active !== "No" || account.name===transaction?.account);
-  const categories = sourceCategories(type);
-  const changeType=(nextType:TransactionType)=>{if(transaction)return;setType(nextType);setCategoryName(sourceCategories(nextType)[0]?.name||"");};
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget), amount = Number(form.get("amount"));
-    if(type==="Transfer"){
-      void onSubmit({action:"addTransfer",transfer:{id:crypto.randomUUID(),date:String(form.get("date")||""),fromAccountId:String(form.get("fromAccountId")||""),toAccountId:String(form.get("toAccountId")||""),amount,reference:String(form.get("reference")||""),notes:String(form.get("notes")||"")}});
-      return;
-    }
-    const category=String(form.get("category")||""),vendor=type==="Expense"?String(form.get("vendor")||""):"";
-    const source=transaction?.source||(type==="Expense"?"expenses":["Donations","Fundraising"].includes(category)?"donations":"offerings");
-    const value:Transaction={id:transaction?.id||crypto.randomUUID(),source,date:String(form.get("date")||""),type,account:String(form.get("account")||""),category,description:
-  String(form.get("description") || "") ||
-  transaction?.description ||
-  vendor ||
-  category,vendor,moneyIn:type==="Income"?amount:0,moneyOut:type==="Expense"?amount:0,paymentMethod:String(form.get("paymentMethod")||transaction?.paymentMethod||"Cash"),reference:String(form.get("reference")||""),notes:String(form.get("notes")||""),specifiedDetails:String(form.get("specifiedDetails")||""),createdAt:transaction?.createdAt||new Date().toISOString()};
-    void onSubmit({action:transaction?"updateTransaction":"addTransaction",transaction:value});
-  };
-  return <form className="record-form" onSubmit={submit}>
-    <div className="segmented transaction-types">
-      <button type="button" disabled={!!transaction} className={type==="Income"?"selected":""} onClick={()=>changeType("Income")}>Money In</button>
-      <button type="button" disabled={!!transaction} className={type==="Expense"?"selected expense":""} onClick={()=>changeType("Expense")}>Money Out</button>
-      <button type="button" disabled={!!transaction} className={type==="Transfer"?"selected transfer":""} onClick={()=>changeType("Transfer")}>Transfer</button>
-    </div>
-    {type==="Transfer"?<div className="form-grid">
-      <label>Amount (PHP)<input name="amount" type="number" inputMode="decimal" min="0.01" step="0.01" placeholder="0.00" required /></label>
-      <label>Date<input name="date" type="date" defaultValue={today} required /></label>
-      <label>From Account<select name="fromAccountId" required>{accounts.map(account=><option key={account.id} value={account.id}>{account.name} &middot; {peso(account.currentBalance)}</option>)}</select></label>
-      <label>To Account<select name="toAccountId" defaultValue={accounts[1]?.id||""} required>{accounts.map(account=><option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-      <label>Reference (optional)<input name="reference" placeholder="Transfer reference no." /></label>
-      <label className="full">Notes (optional)<textarea name="notes" rows={3} placeholder="Optional transfer notes" /></label>
-      <p className="form-help full">Transfers move money between accounts only. They are excluded from income, expense, net cash flow, analytics, and reports.</p>
-    </div>:<div className="form-grid">
-      <label>Amount (PHP)<input name="amount" type="number" inputMode="decimal" min="0.01" step="0.01" defaultValue={transaction?transaction.moneyIn||transaction.moneyOut:undefined} placeholder="0.00" required /></label>
-      <label>Date<input name="date" type="date" defaultValue={transaction?.date||today} required /></label>
-      <label>Account<select name="account" defaultValue={transaction?.account} required>{accounts.map(account=><option key={account.id} value={account.name}>{account.name}</option>)}</select></label>
-      <label>Category<select name="category" value={categoryName} onChange={event=>setCategoryName(event.target.value)} required>{categories.map(category=><option key={category.id} value={category.name}>{category.name}</option>)}</select></label>
-      {isOtherCategory(categoryName)&&<label className="full">
-        {type==="Expense"?"Specify Other Expense Details":"Specify Other Income Details"}
-        <input
-          name="specifiedDetails"
-          defaultValue={transaction?.specifiedDetails||extractSpecifiedDetails(transaction?.notes||"")}
-          placeholder={type==="Expense"?"Describe the purpose of this expense":"Describe the source of this income"}
-          required
-        />
-      </label>}
-      {type==="Expense"&&<label className="full">
-        Vendor / Payee
-        <input name="vendor" defaultValue={transaction?.vendor||""} placeholder="Who was paid?" required />
-      </label>}
-      <label>Payment Method
-        <select name="paymentMethod" defaultValue={transaction?.paymentMethod||"Cash"} required>
-          {paymentMethods.map(method=><option key={method} value={method}>{method}</option>)}
-        </select>
-      </label>
-      <label>Reference (optional)<input name="reference" defaultValue={transaction?.reference||""} placeholder="Receipt or reference no." /></label>
-      {currentPaymentMethods?.failed&&<p className="form-help full" role="status">Church payment methods could not be loaded. The current payment method is still available.</p>}
-      <label className="full">Description (optional)
-        <input name="description" defaultValue={transaction?.description||""} placeholder={type==="Expense"?"What was this expense for?":"Describe this income"} />
-      </label>
-      <label className="full">Notes (optional)
-        <textarea name="notes" rows={3} defaultValue={stripSpecifiedDetails(transaction?.notes||"")} placeholder="Optional notes" />
-      </label>
-    </div>}
-    {transaction&&<p className="audit-note">This saves over the original record ID. Supabase audit logs retain the previous and updated values.</p>}
-    <button className="primary-button form-submit" disabled={saving||accounts.length<(type==="Transfer"?2:1)||(type!=="Transfer"&&!categories.length)}>{saving?"Saving\u2026":transaction?"Save transaction changes":type==="Income"?"Save money in":type==="Expense"?"Save money out":"Save transfer"}</button>
-  </form>;
-}
-
-function TransactionDetails({transaction,canEdit,onEdit}:{transaction:Transaction;canEdit:boolean;onEdit:()=>void}){
-  return <div><div className="detail-grid"><div><span>Date</span><b>{dateLabel(transaction.date)}</b></div><div><span>Type</span><b>{transaction.type}</b></div>{transaction.source==="expenses" &&
- transaction.approvalStatus &&
-
-<div>
-  <span>Approval Status</span>
-  <b>
-    {transaction.approvalStatus}
-  </b>
-</div>
-
-}{transaction.source==="expenses" &&
- transaction.approvedAt &&
-
-<div>
-  <span>Approved Date</span>
-  <b>
-    {dateLabel(transaction.approvedAt)}
-  </b>
-</div>
-
-}{transaction.source==="expenses" &&
- transaction.rejectionReason &&
-
-<div className="detail-full">
-
-  <span>
-    Rejection Reason
-  </span>
-
-  <b>
-    {transaction.rejectionReason}
-  </b>
-
-</div>
-
-}<div><span>Amount</span><b>{peso(transaction.moneyIn||transaction.moneyOut)}</b></div><div><span>Account</span><b>{transaction.account}</b></div><div><span>Category</span><b>{transaction.category}</b></div><div><span>Payment method</span><b>{transaction.paymentMethod||"—"}</b></div>{transaction.vendor&&<div><span>Vendor / Payee</span><b>{transaction.vendor}</b></div>}<div><span>Reference</span><b>{transaction.reference||"—"}</b></div><div className="detail-full"><span>Description</span><b>{transaction.description||"—"}</b></div>{transaction.specifiedDetails&&<div className="detail-full"><span>Specified details</span><b>{transaction.specifiedDetails}</b></div>}<div className="detail-full"><span>Notes</span><b>{stripSpecifiedDetails(transaction.notes)||"—"}</b></div><div className="detail-full"><span>Record ID</span><code>{transaction.id}</code></div></div><div className="audit-note">Edits update this record in place. Its ID remains unchanged and the database audit log records old and new values.</div>{canEdit&&<button className="primary-button form-submit" onClick={onEdit}>Edit transaction</button>}</div>;
-}
-
-function PayableForm({ data, saving, onSubmit }: { data: Data; saving: boolean; onSubmit: (payload: CashFlowMutation) => Promise<void> }) {
-  const expenseCategories = data.categories.filter(category => category.type === "Expense" && category.active !== "No");
-  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const amount = Number(form.get("amount")); const categoryId = String(form.get("categoryId") || ""); const category = data.categories.find(item => item.id === categoryId); if (!category) return; void onSubmit({ action: "addPayable", payable: { id: crypto.randomUUID(), vendor: String(form.get("vendor") || ""), dueDate: String(form.get("dueDate") || ""), category: category.name, categoryId, amount, amountPaid: 0, balance: amount, status: "Unpaid", notes: String(form.get("notes") || ""), createdAt: new Date().toISOString(), payments:[] } }); };
-  return <form className="record-form" onSubmit={submit}><div className="form-grid"><label className="full">Vendor / Payee<input name="vendor" placeholder="Who needs to be paid?" required /></label><label>Due date<input name="dueDate" type="date" defaultValue={today} required /></label><label>Amount (PHP)<input name="amount" type="number" min="0.01" step="0.01" required /></label><label className="full">Category<select name="categoryId" required>{expenseCategories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label className="full">Notes<textarea name="notes" rows={3} /></label></div><button className="primary-button form-submit" disabled={saving || !expenseCategories.length}>{saving ? "Saving…" : "Save payable"}</button></form>;
-}
-
-function PayablePaymentForm({ payable, saving, onSubmit }: { payable: Payable; saving: boolean; onSubmit: (payload: CashFlowMutation) => Promise<void> }) {
-  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); void onSubmit({action:"recordPayablePayment",payment:{payableId:payable.id,paymentDate:String(form.get("paymentDate")||""),amount:Number(form.get("paymentAmount")),paymentMethod:String(form.get("paymentMethod")||""),reference:String(form.get("reference")||""),notes:String(form.get("notes")||"")}}); };
-  return <form className="record-form" onSubmit={submit}><div className="payment-summary"><div><span>Original amount</span><b>{peso(payable.amount)}</b></div><div><span>Already paid</span><b>{peso(payable.amountPaid)}</b></div><div><span>Remaining balance</span><b>{peso(payable.balance)}</b></div></div><div className="form-grid"><label>Payment date<input name="paymentDate" type="date" defaultValue={today} max={today} required /></label><label>Payment amount (PHP)<input name="paymentAmount" type="number" min="0.01" max={payable.balance} step="0.01" defaultValue={payable.balance} required /></label><label>Payment method<select name="paymentMethod"><option>Cash</option><option>Bank Transfer</option><option>Check</option><option>Card</option><option>Online</option><option>Other</option></select></label><label>Reference<input name="reference" placeholder="Receipt or reference no." /></label><label className="full">Notes<textarea name="notes" rows={3} placeholder="Optional payment notes" /></label></div><p className="audit-note">Recorded payments are permanent history entries and cannot be edited or deleted from the app.</p><button className="primary-button form-submit" disabled={saving}>{saving?"Saving…":"Record payment"}</button></form>;
-}
-
-function PayableDetails({payable,canRecord,onRecord}:{payable:Payable;canRecord:boolean;onRecord:()=>void}){
-  return <div><div className="payment-summary"><div><span>Original amount</span><b>{peso(payable.amount)}</b></div><div><span>Total paid</span><b>{peso(payable.amountPaid)}</b></div><div><span>Balance</span><b>{peso(payable.balance)}</b></div></div><div className="history-head"><div><p className="eyebrow">Immutable ledger</p><h3>Payment history</h3></div>{canRecord&&payable.balance>0&&<button className="secondary-button" onClick={onRecord}>＋ Record payment</button>}</div>{payable.payments.length?<div className="payment-history">{payable.payments.map(payment=><article key={payment.id}><div className="payment-history-mark">✓</div><div><b>{peso(payment.amount)}</b><span>{dateLabel(payment.paymentDate)} · {payment.paymentMethod}</span><small>{payment.reference?`Reference: ${payment.reference}`:"No reference"}</small>{payment.notes&&<small>{payment.notes}</small>}</div><div className="payment-user"><span>Recorded by</span><b>{payment.recordedByName||"Unknown user"}</b></div></article>)}</div>:<div className="empty-mini">No payments have been recorded for this payable.</div>}<p className="audit-note">Payment entries are append-only. Balance and status changes are recorded separately in the database audit log.</p></div>;
-}
-
-function AccountForm({ account, saving, onSubmit }: { account: Account | null; saving: boolean; onSubmit: (payload: CashFlowMutation) => Promise<void> }) {
-  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); void onSubmit({ action: "saveAccount", account: { id: account?.id, name: String(form.get("name") || ""), type: String(form.get("type") || "Cash") as "Cash" | "Bank" | "Other", openingBalance: Number(form.get("openingBalance")), active: String(form.get("active")) === "true" } }); };
-  return <form className="record-form" onSubmit={submit}><div className="form-grid"><label className="full">Account name<input name="name" defaultValue={account?.name || ""} placeholder="Account name" required /></label><label>Account type<select name="type" defaultValue={account?.type || "Cash"}><option>Cash</option><option>Bank</option><option>Other</option></select></label><label>Opening balance (PHP)<input name="openingBalance" type="number" step="0.01" defaultValue={account?.openingBalance || 0} required /></label><label className="full">Status<select name="active" defaultValue={account?.active === "No" ? "false" : "true"}><option value="true">Active</option><option value="false">Inactive</option></select></label></div><p className="form-help">Deactivating an account keeps its transaction history while removing it from new entry forms.</p><button className="primary-button form-submit" disabled={saving}>{saving ? "Saving…" : account ? "Save account changes" : "Create account"}</button></form>;
 }

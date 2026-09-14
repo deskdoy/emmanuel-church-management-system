@@ -18,6 +18,13 @@ const assertAdminNavigation = (page, key, icon, label) => {
 
 test("financial navigation and entry actions are restored", () => {
   const page = read("app/page.tsx");
+  const transactionForm = read("src/components/transactions/TransactionForm.tsx");
+  const payableDetails = read("src/components/transactions/PayableDetails.tsx");
+  for (const component of ["TransactionForm", "TransactionDetails", "PayableForm", "PayablePaymentForm", "PayableDetails", "AccountForm"]) {
+    assert.match(page, new RegExp(`import\\s*\\{[^}]*\\b${component}\\b[^}]*\\}\\s*from\\s*"\\.\\./src/components/transactions/${component}"`));
+    assert.match(page, new RegExp(`<${component}\\b`));
+    assert.match(read(`src/components/transactions/${component}.tsx`), new RegExp(`export\\s+function\\s+${component}\\b`));
+  }
   const nav = page.slice(page.indexOf("const navItems"), page.indexOf("const showFinanceNotice"));
   const labels = ["Dashboard", "Transactions", "Offerings", "Donations", "Expenses", "Payables", "Accounts", "Categories", "Payment Methods", "Projects", "Reports", "Members", "Users", "Audit Logs", "Backup Center", "System Information", "Financial Approvals", "Settings"];
   let previous = -1;
@@ -35,13 +42,13 @@ test("financial navigation and entry actions are restored", () => {
   assert.match(page, /Logout/);
   assert.match(page, /Add Payable/);
   assert.match(page, /Record payment/);
-  assert.match(page, /Payment history/);
+  assert.match(payableDetails, /Payment history/);
   assert.match(page, /Transaction details/);
   assert.match(page, /Edit transaction/);
-  assert.match(page, /Specify Other Expense Details/);
-  assert.match(page, /Specify Other Income Details/);
-  assert.match(page, /isOtherCategory\(\s*categoryName\s*\)\s*&&\s*<label\b/);
-  assert.match(page, /<input\s+name="specifiedDetails"(?:(?!\/>)[\s\S])*\srequired\s*\/>/);
+  assert.match(transactionForm, /Specify Other Expense Details/);
+  assert.match(transactionForm, /Specify Other Income Details/);
+  assert.match(transactionForm, /isOtherCategory\(\s*categoryName\s*\)\s*&&\s*<label\b/);
+  assert.match(transactionForm, /<input\s+name="specifiedDetails"(?:(?!\/>)[\s\S])*\srequired\s*\/>/);
   assert.match(page, /New Account/);
   assert.match(page, /Transfer history/);
   assert.match(page, /From account/);
@@ -56,7 +63,7 @@ test("account transfers are append-only and isolated from income and expense rep
   assert.match(service, /from\("account_transfers"\)\.insert/);
   assert.match(service, /currentBalance:openingBalance\+moneyIn-moneyOut\+transferIn-transferOut/);
   assert.match(page, /data\.transactions\.reduce[\s\S]*moneyIn/);
-  assert.match(page, /Transfers move money between accounts only/);
+  assert.match(read("src/components/transactions/TransactionForm.tsx"), /Transfers move money between accounts only/);
   assert.match(reporting, /const income=period\.filter\(row=>row\.type==="Income"\),expenses=period\.filter\(row=>row\.type==="Expense"\)/);
   assert.match(reporting, /transferIn[\s\S]*transferOut[\s\S]*currentBalance/);
   assert.doesNotMatch(reporting, /totalIncome[^;]*transfers|totalExpenses[^;]*transfers/);

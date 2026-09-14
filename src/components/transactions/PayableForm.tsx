@@ -1,0 +1,9 @@
+import type { FormEvent } from "react";
+import type { CashFlowData as Data, CashFlowMutation } from "../../types";
+import { today } from "./formatters";
+
+export function PayableForm({ data, saving, onSubmit }: { data: Data; saving: boolean; onSubmit: (payload: CashFlowMutation) => Promise<void> }) {
+  const expenseCategories = data.categories.filter(category => category.type === "Expense" && category.active !== "No");
+  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const amount = Number(form.get("amount")); const categoryId = String(form.get("categoryId") || ""); const category = data.categories.find(item => item.id === categoryId); if (!category) return; void onSubmit({ action: "addPayable", payable: { id: crypto.randomUUID(), vendor: String(form.get("vendor") || ""), dueDate: String(form.get("dueDate") || ""), category: category.name, categoryId, amount, amountPaid: 0, balance: amount, status: "Unpaid", notes: String(form.get("notes") || ""), createdAt: new Date().toISOString(), payments:[] } }); };
+  return <form className="record-form" onSubmit={submit}><div className="form-grid"><label className="full">Vendor / Payee<input name="vendor" placeholder="Who needs to be paid?" required /></label><label>Due date<input name="dueDate" type="date" defaultValue={today} required /></label><label>Amount (PHP)<input name="amount" type="number" min="0.01" step="0.01" required /></label><label className="full">Category<select name="categoryId" required>{expenseCategories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label className="full">Notes<textarea name="notes" rows={3} /></label></div><button className="primary-button form-submit" disabled={saving || !expenseCategories.length}>{saving ? "Saving…" : "Save payable"}</button></form>;
+}
