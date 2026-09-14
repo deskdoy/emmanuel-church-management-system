@@ -1,20 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { assertAdminNavigation, assertNavigationWiring } from "./helpers/navigation.mjs";
+import { getNavigationItems, getViewHeadings, navigationSections, navigationSectionByView } from "../src/navigation/viewRegistry.ts";
 
 const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-const assertAdminNavigation = (page, key, icon, label) => {
-  // Match the guarded push itself, so an unrelated later label cannot satisfy it.
-  const adminNavigation = page.match(/if\s*\(\s*isChurchAdmin\s*\)\s*(?:\{\s*)?navItems\.push\(\s*((?:\[[^\]]+\]\s*,?\s*)+)\)/);
-  assert.ok(adminNavigation, "Church Admin must gate the administration navigation");
-  assert.match(adminNavigation[1], new RegExp(`\\[\\s*"${key}"\\s*,\\s*"${icon}"\\s*,\\s*"${label}"\\s*\\]`));
-  const defaultNavigation = page.match(/const\s+navItems\s*:[^=]+=(\s*\[[\s\S]*?);/);
-  assert.ok(defaultNavigation, "The default navigation must be present");
-  assert.doesNotMatch(defaultNavigation[1], new RegExp(`\\[\\s*"${key}"\\s*,`));
-  assert.match(page, /isChurchAdmin\s*=\s*activeRole\s*===\s*"Admin"/);
-};
-
 
 test("financial navigation and entry actions are restored", () => {
   const page = read("app/page.tsx");
@@ -25,16 +15,16 @@ test("financial navigation and entry actions are restored", () => {
     assert.match(page, new RegExp(`<${component}\\b`));
     assert.match(read(`src/components/transactions/${component}.tsx`), new RegExp(`export\\s+function\\s+${component}\\b`));
   }
-  const nav = page.slice(page.indexOf("const navItems"), page.indexOf("const showFinanceNotice"));
+  assertNavigationWiring(page);
+  const nav = getNavigationItems({ isChurchAdmin: true, canApproveFinance: true });
   const labels = ["Dashboard", "Transactions", "Offerings", "Donations", "Expenses", "Payables", "Accounts", "Categories", "Payment Methods", "Projects", "Reports", "Members", "Users", "Audit Logs", "Backup Center", "System Information", "Financial Approvals", "Settings"];
-  let previous = -1;
-  for (const label of labels) {
-    const position = nav.indexOf(`"${label}"`);
-    assert.ok(position > previous, `${label} should appear in sidebar order`);
-    previous = position;
-  }
-  // Expenses now has a dedicated ledger; the combined transaction view remains.
-  assert.doesNotMatch(nav, /"Income"|"Analytics"|"Access Requests"/);
+  assert.deepEqual(nav.map(([, , label]) => label), labels);
+  assert.deepEqual(navigationSections.map(section => nav.filter(([key]) => navigationSectionByView[key] === section).map(([key]) => key)), [
+    ["dashboard"],
+    ["transactions", "offerings", "donations", "expenses", "payables", "accounts", "categories", "payment-methods", "reports", "financial-approvals"],
+    ["projects", "members"],
+    ["users", "audit", "backup", "system", "settings"],
+  ]);
   assert.match(page, /view\s*===\s*"expenses"\s*&&\s*activeChurch\s*&&\s*profile\s*&&\s*<ExpensesView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}\s+userId\s*=\s*\{\s*profile\.id\s*\}\s*\/>/);
   assert.match(page, /New Transaction/);
   assert.match(page, /Money In/);
@@ -195,4 +185,41 @@ test("public access requests and Admin approval workflow are secured", () => {
   assert.doesNotMatch(migration, /grant (update|delete) on public\.access_requests/i);
   assert.match(migration, /audit_access_requests/);
   assert.match(migration, /p_approved_role text/);
+});
+
+test("view registry keeps restricted navigation out of other church roles", () => {
+  const page = read("app/page.tsx");
+  assertNavigationWiring(page);
+  const publicViews = ["dashboard", "transactions", "offerings", "donations", "expenses", "payables", "accounts", "categories", "payment-methods", "projects", "reports"];
+  for (const role of ["Admin", "Treasurer", "Pastor", "Secretary", "Encoder", "Viewer", null]) {
+    const items = getNavigationItems({ isChurchAdmin: role === "Admin", canApproveFinance: role === "Admin" || role === "Treasurer" });
+    const expected = [...publicViews];
+    if (role === "Admin") expected.push("members", "users", "audit", "backup", "system");
+    if (role === "Admin" || role === "Treasurer") expected.push("financial-approvals");
+    expected.push("settings");
+    assert.deepEqual(items.map(([key]) => key), expected, `Navigation for ${role}`);
+  }
+});
+
+test("view headings cover every view and preserve personalized greeting boundaries", () => {
+  const page = read("app/page.tsx");
+  assert.match(page, /const\s+headings\s*=\s*getViewHeadings\(profile\)/);
+  assert.match(page, /<Topbar\s+heading=\{headings\[view\]\}/);
+  const profile = { fullName: "  Maria Santos  ", email: "maria@example.org" };
+  for (const [hour, greeting] of [[0, "Good morning"], [11, "Good morning"], [12, "Good afternoon"], [17, "Good afternoon"], [18, "Good evening"], [23, "Good evening"]]) {
+    const headings = getViewHeadings(profile, new Date(2026, 8, 14, hour));
+    assert.deepEqual(headings.dashboard, [`${greeting}, Maria.`, "Welcome to your Faithful Steward financial stewardship workspace."]);
+  }
+  const morning = new Date(2026, 8, 14, 9);
+  assert.equal(getViewHeadings(null, morning).dashboard[0], "Good morning, Steward.");
+  assert.equal(getViewHeadings({ fullName: "", email: "maria@example.org" }, morning).dashboard[0], "Good morning, maria@example.org.");
+  const headings = getViewHeadings(profile, morning);
+  const keys = getNavigationItems({ isChurchAdmin: true, canApproveFinance: true }).map(([key]) => key);
+  assert.deepEqual(Object.keys(headings).sort(), [...keys].sort());
+  assert.deepEqual(Object.keys(navigationSectionByView).sort(), [...keys].sort());
+  for (const key of keys) {
+    assert.equal(headings[key].length, 2);
+    assert.ok(headings[key].every(text => typeof text === "string" && text.length > 0));
+  }
+  assert.equal(headings.audit[0], "Audit logs");
 });

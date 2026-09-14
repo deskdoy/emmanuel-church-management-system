@@ -29,7 +29,7 @@ import { AccountForm } from "../src/components/transactions/AccountForm";
 import { dateLabel, peso } from "../src/components/transactions/formatters";
 import { Sidebar } from "../src/components/layout/Sidebar";
 import { Topbar } from "../src/components/layout/Topbar";
-import type { NavigationItem, View } from "../src/components/layout/types";
+import { getNavigationItems, getViewHeadings, type View } from "../src/navigation/viewRegistry";
 import { AppIcon } from "../src/components/ui/AppIcon";
 import { EmptyState } from "../src/components/ui/EmptyState";
 import { PageTransition } from "../src/components/ui/PageTransition";
@@ -97,8 +97,6 @@ function ChurchWorkspace() {
   activeRole==="Admin" ||
   activeRole==="Treasurer";
   const churchProfile=profile&&activeRole?{...profile,role:activeRole}:null;
-  const firstName=(profile?.fullName||profile?.email||"Steward").trim().split(/\s+/)[0];
-  const hour=new Date().getHours(),greeting=hour<12?"Good morning":hour<18?"Good afternoon":"Good evening";
   const refresh = useCallback(async () => {
     setLoading(true); setError("");
     if(!activeChurch){setData(emptyData);setConnected(false);setLoading(false);return;}
@@ -142,125 +140,8 @@ function ChurchWorkspace() {
       setError(cause instanceof Error ? cause.message : "Could not save this record."); setNotice("Could not save. Review the message above.");
     } finally { setSaving(false); }
   };
-  const headings: Record<View, [string, string]> = {
-
-  dashboard: [
-    `${greeting}, ${firstName}.`,
-    "Welcome to your Faithful Steward financial stewardship workspace."
-  ],
-
-  transactions: [
-    "Transactions",
-    "Record and review money in, money out, and transfers."
-  ],
-
-  offerings: [
-  "Offerings",
-  "Record worship offerings and church collections."
-],
-
-donations: [
-  "Donations",
-  "Record member and special donations."
-],
-
-expenses: [
-  "Expenses",
-  "Record church expenses and payments."
-],
-
-  payables: [
-    "Payables",
-    "Manage commitments, balances, and payments due."
-  ],
-
-  accounts: [
-    "Accounts",
-    "Manage cash and bank accounts without losing history."
-  ],
-
-  categories: [
-    "Categories",
-    "Manage income and expense categories for your church."
-  ],
-
-  "payment-methods": [
-    "Payment Methods",
-    "Manage accepted payment methods for your church."
-  ],
-
-  projects: [
-    "Projects",
-    "Plan and follow church initiatives in one place."
-  ],
-
-  reports: [
-    "Reports",
-    "Generate statements and review cash flow analytics."
-  ],
-
-  members: [
-    "Members",
-    "Manage church members, profiles, and ministry information."
-  ],
-
-  users: [
-    "Users",
-    "Manage approved users, roles, and account status."
-  ],
-
-  audit: [
-    "Audit logs",
-    "Review secured, immutable records of activity across the system."
-  ],
-
-  backup: [
-    "Backup Center",
-    "Generate audited browser-only exports for church records."
-  ],
-
-  system: [
-    "System Information",
-    "Review application health and operational usage."
-  ],
-
-  settings: [
-    "Settings",
-    "Review your account and application configuration."
-  ],
-
-  "financial-approvals": [
-  "Financial Approvals",
-  "Review and approve pending financial records."
-],
-
-};
-  const navItems: NavigationItem[] = [
-["dashboard", "dashboard", "Dashboard"],
-["transactions","transactions","Transactions"],
-["offerings","transactions","Offerings"],
-["donations","transactions","Donations"],
-["expenses","transactions","Expenses"],
-["payables","payables","Payables"],
-["accounts", "accounts", "Accounts"],
-["categories", "accounts", "Categories"],
-["payment-methods","accounts","Payment Methods"],
-["projects", "projects", "Projects"],
-["reports", "reports", "Reports"]
-];
-  if(isChurchAdmin)
-navItems.push(
- ["members","users","Members"],
- ["users","users","Users"],["audit","audit","Audit Logs"],["backup","backup","Backup Center"],["system","system","System Information"]);
- if(canApproveFinance)
-  navItems.push(
-    [
-      "financial-approvals",
-      "transactions",
-      "Financial Approvals"
-    ]
-  );
-  navItems.push(["settings", "settings", "Settings"]);
+  const headings = getViewHeadings(profile);
+  const navItems = getNavigationItems({ isChurchAdmin, canApproveFinance });
   const showFinanceNotice = !canWriteFinance && ["transactions", "payables"].includes(view);
   const headerActions = () => {
     if (["dashboard", "transactions"].includes(view)) return <button className="primary-button" disabled={!canWriteFinance} onClick={() => openTransaction("Income")}><AppIcon name="plus" size={17}/>New Transaction</button>;

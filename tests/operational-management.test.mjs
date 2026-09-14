@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { assertAdminNavigation } from "./helpers/navigation.mjs";
 import { buildBackupCsv, createExportId, scopeLabel } from "../src/operations/backupExport.ts";
 
 const read = path => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -34,15 +35,8 @@ test("Backup Center and System Information are Admin-only navigation modules", (
   const page = read("app/page.tsx");
   const backup = read("src/components/BackupCenterView.tsx");
   const system = read("src/components/SystemInformationView.tsx");
-  // Both entries must belong to the guarded push, regardless of line wrapping.
-  const adminNavigation = page.match(/if\s*\(\s*isChurchAdmin\s*\)\s*(?:\{\s*)?navItems\.push\(\s*((?:\[[^\]]+\]\s*,?\s*)+)\)/);
-  assert.ok(adminNavigation, "Church Admin must gate the administration navigation");
-  assert.match(adminNavigation[1], /\[\s*"backup"\s*,\s*"backup"\s*,\s*"Backup Center"\s*\]/);
-  assert.match(adminNavigation[1], /\[\s*"system"\s*,\s*"system"\s*,\s*"System Information"\s*\]/);
-  const defaultNavigation = page.match(/const\s+navItems\s*:[^=]+=(\s*\[[\s\S]*?);/);
-  assert.ok(defaultNavigation, "The default navigation must be present");
-  assert.doesNotMatch(defaultNavigation[1], /\[\s*"(?:backup|system)"\s*,/);
-  assert.match(page, /isChurchAdmin\s*=\s*activeRole\s*===\s*"Admin"/);
+  assertAdminNavigation(page, "backup", "backup", "Backup Center");
+  assertAdminNavigation(page, "system", "system", "System Information");
   assert.match(page, /view\s*===\s*"backup"\s*&&\s*isChurchAdmin\s*&&\s*churchProfile\s*&&\s*activeChurch\s*&&\s*<BackupCenterView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}/);
   assert.match(page, /view\s*===\s*"system"\s*&&\s*isChurchAdmin\s*&&\s*churchProfile\s*&&\s*activeChurch\s*&&\s*<SystemInformationView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}/);
   assert.match(backup, /profile\.role !== "Admin"/);

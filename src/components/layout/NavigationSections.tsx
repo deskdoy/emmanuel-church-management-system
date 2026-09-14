@@ -1,28 +1,6 @@
 import { Fragment } from "react";
 import { AppIcon } from "../ui/AppIcon";
-import type { NavigationItem, View } from "./types";
-
-const navigationSections = ["Overview", "Finance", "Ministry", "Administration"] as const;
-const navigationSectionByView: Record<View, typeof navigationSections[number]> = {
-  dashboard: "Overview",
-  transactions: "Finance",
-  offerings: "Finance",
-  donations: "Finance",
-  expenses: "Finance",
-  payables: "Finance",
-  accounts: "Finance",
-  categories: "Finance",
-  "payment-methods": "Finance",
-  reports: "Finance",
-  "financial-approvals": "Finance",
-  projects: "Ministry",
-  members: "Ministry",
-  users: "Administration",
-  audit: "Administration",
-  backup: "Administration",
-  system: "Administration",
-  settings: "Administration",
-};
+import { navigationSections, navigationSectionByView, type NavigationItem, type View } from "../../navigation/viewRegistry";
 
 export function NavigationSections({view,navItems,onNavigate}:{view:View;navItems:NavigationItem[];onNavigate:(view:View)=>void}) {
   return <>{navigationSections.map(section => (
