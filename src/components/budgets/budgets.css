@@ -1,0 +1,11 @@
+.budget-workspace{display:grid;gap:16px;min-width:0}
+.budget-workspace>.panel{min-width:0;min-height:0}
+.budget-toolbar,.budget-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.budget-toolbar{justify-content:space-between}
+.budget-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0}
+.budget-summary dt{font-size:11px;color:var(--muted);margin-bottom:6px}
+.budget-summary dd{margin:0;font-size:18px;font-weight:700}
+.budget-workspace .record-form{padding:0}
+.budget-workspace .budget-notes{white-space:pre-wrap;overflow-wrap:anywhere}
+.budget-workspace .project-card h3{overflow-wrap:anywhere}
+@media(max-width:720px){.budget-summary{grid-template-columns:1fr}.budget-toolbar{align-items:flex-start}.budget-actions>button{flex:1}.budget-workspace .panel-head{gap:14px}}

@@ -6,6 +6,7 @@ import { useActiveChurch } from "../src/tenancy/ActiveChurchContext";
 import { accountManagerRoles, financeWriterRoles, hasChurchRole, projectManagerRoles } from "../src/tenancy/permissions";
 import { AuditLogsView } from "../src/components/AuditLogsView";
 import { BackupCenterView } from "../src/components/BackupCenterView";
+import { BudgetView } from "../src/components/budgets/BudgetView";
 import { DashboardView } from "../src/components/DashboardView";
 import { ProjectsView } from "../src/components/ProjectsView";
 import { ReportsView } from "../src/components/ReportsView";
@@ -227,6 +228,7 @@ function ChurchWorkspace() {
    churchId={activeChurch.id}
 />
 }
+      {view === "budgets" && activeChurch && <BudgetView churchId={activeChurch.id} />}
       {view === "projects" && activeChurch&&<ProjectsView churchId={activeChurch.id} canManage={hasChurchRole(activeRole,projectManagerRoles)}/>}
       {view === "reports" && <ReportsView data={data} />}
       {view === "members" &&

@@ -11,6 +11,7 @@ export type View =
   | "accounts"
   | "categories"
   | "payment-methods"
+  | "budgets"
   | "projects"
   | "reports"
   | "members"
@@ -34,6 +35,7 @@ export const navigationSectionByView: Record<View, typeof navigationSections[num
   accounts: "Finance",
   categories: "Finance",
   "payment-methods": "Finance",
+  budgets: "Finance",
   reports: "Finance",
   "financial-approvals": "Finance",
   projects: "Ministry",
@@ -62,6 +64,7 @@ export function getViewHeadings(
     accounts: ["Accounts", "Manage cash and bank accounts without losing history."],
     categories: ["Categories", "Manage income and expense categories for your church."],
     "payment-methods": ["Payment Methods", "Manage accepted payment methods for your church."],
+    budgets: ["Budget Planning", "Plan and review church budgets by fiscal year and category."],
     projects: ["Projects", "Plan and follow church initiatives in one place."],
     reports: ["Reports", "Generate statements and review cash flow analytics."],
     members: ["Members", "Manage church members, profiles, and ministry information."],
@@ -88,6 +91,7 @@ export function getNavigationItems({ isChurchAdmin, canApproveFinance }: {
     ["accounts", "accounts", "Accounts"],
     ["categories", "accounts", "Categories"],
     ["payment-methods", "accounts", "Payment Methods"],
+    ["budgets", "reports", "Budget Planning"],
     ["projects", "projects", "Projects"],
     ["reports", "reports", "Reports"],
   ];
