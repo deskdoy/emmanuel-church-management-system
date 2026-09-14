@@ -18,6 +18,13 @@ const peso = (value:number) =>
 
 
 
+const formatDate = (value:string) =>
+  new Date(value).toLocaleString("en-PH", {
+    dateStyle:"medium",
+    timeStyle:"short"
+  });
+
+
 export function FinancialApprovalView({
   churchId,
   userId
@@ -211,6 +218,33 @@ export function FinancialApprovalView({
           <small>
             Status: {expense.approvalStatus}
           </small>
+
+
+          <div>
+            <p><small>
+              Created: <time dateTime={expense.createdAt}>{formatDate(expense.createdAt)}</time>
+            </small></p>
+
+            {expense.approvedBy && <p><small>
+              Approved by: {expense.approvedBy}
+            </small></p>}
+
+            {expense.approvedAt && <p><small>
+              Approved at: <time dateTime={expense.approvedAt}>{formatDate(expense.approvedAt)}</time>
+            </small></p>}
+
+            {expense.rejectedBy && <p><small>
+              Rejected by: {expense.rejectedBy}
+            </small></p>}
+
+            {expense.rejectedAt && <p><small>
+              Rejected at: <time dateTime={expense.rejectedAt}>{formatDate(expense.rejectedAt)}</time>
+            </small></p>}
+
+            {expense.rejectionReason && <p><small>
+              Rejection reason: {expense.rejectionReason}
+            </small></p>}
+          </div>
 
 
 

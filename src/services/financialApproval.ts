@@ -32,6 +32,18 @@ export type PendingExpense = {
 
   approvalStatus:string;
 
+  recordedBy:string|null;
+
+  approvedBy:string|null;
+
+  approvedAt:string|null;
+
+  rejectedBy:string|null;
+
+  rejectedAt:string|null;
+
+  rejectionReason:string|null;
+
   createdAt:string;
 
 };
@@ -60,6 +72,12 @@ export async function loadPendingExpenses(
         reference,
         notes,
         approval_status,
+        recorded_by,
+        approved_by,
+        approved_at,
+        rejected_by,
+        rejected_at,
+        rejection_reason,
         created_at
         `
       )
@@ -112,6 +130,24 @@ export async function loadPendingExpenses(
 
       approvalStatus:
         row.approval_status,
+
+      recordedBy:
+        row.recorded_by,
+
+      approvedBy:
+        row.approved_by,
+
+      approvedAt:
+        row.approved_at,
+
+      rejectedBy:
+        row.rejected_by,
+
+      rejectedAt:
+        row.rejected_at,
+
+      rejectionReason:
+        row.rejection_reason,
 
       createdAt:
         row.created_at

@@ -72,7 +72,7 @@ const toggleApproval = async () => {
 
 };
 
-  return <section className="settings-grid"><article className="panel settings-card"><p className="eyebrow">Account</p><h2>Signed-in profile</h2><dl><div><dt>Name</dt><dd>{profile.fullName||"Not provided"}</dd></div><div><dt>Email</dt><dd>{profile.email}</dd></div><div><dt>Role</dt><dd><span className="status paid">{profile.role}</span></dd></div><div><dt>Status</dt><dd>{profile.isActive?"Active":"Inactive"}</dd></div></dl></article><article className="panel settings-card"><p className="eyebrow">Application</p><h2>System settings</h2><dl><div><dt>Currency</dt><dd>Philippine Peso (PHP)</dd></div><div><dt>Database</dt><dd><span className={`connection-chip ${connected?"connected":""}`}>{connected?"Connected":"Connection pending"}</span></dd></div><div><dt>Financial records</dt><dd>Supabase PostgreSQL</dd></div><div><dt>Hosting</dt><dd>Vercel-compatible Vite build</dd></div></dl><p className="audit-note">Security, authentication, and role configuration are managed centrally and cannot be changed from this screen.</p></article></section>;
+  return <section className="settings-grid"><article className="panel settings-card"><p className="eyebrow">Account</p><h2>Signed-in profile</h2><dl><div><dt>Name</dt><dd>{profile.fullName||"Not provided"}</dd></div><div><dt>Email</dt><dd>{profile.email}</dd></div><div><dt>Role</dt><dd><span className="status paid">{profile.role}</span></dd></div><div><dt>Status</dt><dd>{profile.isActive?"Active":"Inactive"}</dd></div></dl></article><article className="panel settings-card"><p className="eyebrow">Application</p><h2>System settings</h2><dl><div><dt>Currency</dt><dd>Philippine Peso (PHP)</dd></div><div><dt>Database</dt><dd><span className={`connection-chip ${connected?"connected":""}`}>{connected?"Connected":"Connection pending"}</span></dd></div><div><dt>Financial records</dt><dd>Supabase PostgreSQL</dd></div><div><dt>Hosting</dt><dd>Vercel-compatible Vite build</dd></div></dl><p className="audit-note">Security, authentication, and role configuration are managed centrally and cannot be changed from this screen.</p></article>
   <article className="panel settings-card">
 
   <p className="eyebrow">
@@ -96,16 +96,21 @@ const toggleApproval = async () => {
       <dd>
 
         <button
+          type="button"
           className="outline-button"
+          role="switch"
+          aria-label="Require transaction approval"
+          aria-checked={approvalRequired}
+          aria-busy={savingApproval}
           disabled={savingApproval}
           onClick={toggleApproval}
         >
 
-          {
-            approvalRequired
-              ? "Enabled"
-              : "Disabled"
-          }
+          <span className={`status ${approvalRequired ? "paid" : "unpaid"}`}>
+            {approvalRequired ? "ON" : "OFF"}
+          </span>
+          {" "}
+          {savingApproval ? "Saving..." : approvalRequired ? "Turn off" : "Turn on"}
 
         </button>
 
@@ -126,5 +131,5 @@ const toggleApproval = async () => {
   </p>
 
 
-</article>
+</article></section>;
 }
