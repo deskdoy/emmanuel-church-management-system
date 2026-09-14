@@ -28,7 +28,14 @@ before(async () => {
           import React from "react";
           import { createRoot } from "react-dom/client";
           import { BudgetView } from ${JSON.stringify(fileURLToPath(new URL("../../src/components/budgets/BudgetView.tsx", import.meta.url)).replaceAll("\\", "/"))};
+          import { BudgetHealthCard } from ${JSON.stringify(fileURLToPath(new URL("../../src/components/dashboard/BudgetHealthCard.tsx", import.meta.url)).replaceAll("\\", "/"))};
           const root = createRoot(document.getElementById("root"));
+          window.updateBudgetHealth = () => root.render(React.createElement(BudgetHealthCard, { churchId: window.healthChurchId, data: window.healthData, asOf: new Date(2026, 8, 14) }));
+          window.renderBudgetHealth = (role = "Admin", churchId = "church-a", viewChurchId = churchId) => {
+            window.scope = { activeRole: role, activeChurch: { id: churchId }, scopeVersion: (window.scope?.scopeVersion || 0) + 1, workspaceMode: "church" };
+            window.healthChurchId = viewChurchId;
+            window.updateBudgetHealth();
+          };
           window.renderBudget = (role = "Admin", churchId = "church-a", viewChurchId = churchId) => {
             window.scope = { activeRole: role, activeChurch: { id: churchId }, scopeVersion: (window.scope?.scopeVersion || 0) + 1, workspaceMode: "church" };
             root.render(React.createElement(BudgetView, { churchId: viewChurchId }));
@@ -273,5 +280,96 @@ test("a report request completing after a church switch cannot display old churc
     await page.waitForTimeout(50);
     assert.equal(await page.getByRole("region", { name: "Budget vs Actual report" }).count(), 0);
     assert.equal(await page.getByText("Annual ministry plan", { exact: true }).count(), 0);
+  } finally { await page.close(); }
+});
+
+
+async function healthPage() {
+  const page = await pageFor();
+  await page.getByRole("heading", { name: "No budgets yet" }).waitFor();
+  await page.evaluate(() => {
+    const budget = { id: "budget-a", churchId: "church-a", name: "Active annual plan", fiscalYear: 2026, status: "Active", notes: "", createdBy: "user-a", approvedBy: "user-a", approvedAt: "2026-09-14T10:00:00Z", createdAt: "2026-09-14T10:00:00Z", updatedAt: "2026-09-14T10:00:00Z" };
+    window.budgets = [budget];
+    window.lines = [{ id: "line-a", churchId: "church-a", budgetId: "budget-a", categoryId: "cat-a", amount: 1000, notes: "", createdBy: "user-a", createdAt: budget.createdAt, updatedAt: budget.updatedAt }];
+    const expense = { type: "Expense", category: "Ministry", date: "2026-06-01", moneyOut: 200, moneyIn: 0, approvalStatus: "approved" };
+    window.healthData = { categories: [{ id: "cat-a", name: "Ministry", type: "Expense", group: "Expense", active: "Yes" }], transactions: [expense, { ...expense, moneyOut: 9999, approvalStatus: "pending" }, { ...expense, moneyOut: 9999, approvalStatus: "rejected" }] };
+    window.renderBudgetHealth();
+  });
+  await page.getByRole("article", { name: "Budget Health" }).locator("dd").first().waitFor();
+  return page;
+}
+
+test("Budget Health uses approved totals, updates with dashboard data, and marks health thresholds", async () => {
+  const page = await healthPage();
+  try {
+    const card = page.getByRole("article", { name: "Budget Health" });
+    assert.deepEqual(await card.locator("dd").allTextContents(), ["\u20b11,000.00", "\u20b1200.00", "\u20b1800.00", "20%"]);
+    assert.equal(await card.locator(".status").innerText(), "Healthy");
+    const callsBefore = await page.evaluate(() => window.calls.length);
+    for (const [amount, status, usage] of [[799.99, "Healthy", "80%"], [800, "Warning", "80%"], [1000, "Warning", "100%"], [1000.01, "Over Budget", "100%"]]) {
+      await page.evaluate(amount => { window.healthData = { ...window.healthData, transactions: [{ ...window.healthData.transactions[0], moneyOut: amount }] }; window.updateBudgetHealth(); }, amount);
+      // Await the rendered amount so the assertion observes this update.
+      const actual = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(amount);
+      await card.locator("dd").nth(1).filter({ hasText: actual }).waitFor();
+      assert.equal(await card.locator(".status").innerText(), status);
+      assert.equal(await card.locator("dd").nth(3).innerText(), usage);
+    }
+    assert.equal(await page.evaluate(() => window.calls.length), callsBefore);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  } finally { await page.close(); }
+});
+
+test("Budget Health is available only to Admin/Treasurer and makes no requests for other roles", async () => {
+  const page = await healthPage();
+  try {
+    await page.evaluate(() => window.renderBudgetHealth("Treasurer"));
+    await page.getByRole("article", { name: "Budget Health" }).locator("dd").first().waitFor();
+    for (const role of ["Pastor", "Secretary", "Encoder", "Viewer", null]) {
+      await page.evaluate(role => { window.calls = []; window.renderBudgetHealth(role); }, role);
+      await page.getByRole("article", { name: "Budget Health" }).waitFor({ state: "detached" });
+      assert.equal(await page.evaluate(() => window.calls.length), 0);
+    }
+    await page.evaluate(() => { window.calls = []; window.renderBudgetHealth("Admin", "church-a", "church-b"); });
+    await page.waitForTimeout(50);
+    assert.equal(await page.getByRole("article", { name: "Budget Health" }).count(), 0);
+    assert.equal(await page.evaluate(() => window.calls.length), 0);
+  } finally { await page.close(); }
+});
+
+test("Budget Health selects current-year active budgets without combining their actuals", async () => {
+  const page = await healthPage();
+  try {
+    await page.evaluate(() => {
+      const original = window.budgets[0];
+      window.budgets.push({ ...original, id: "budget-b", name: "Second active plan", updatedAt: "2026-01-01T00:00:00Z" }, { ...original, id: "draft", name: "Draft plan", status: "Draft" }, { ...original, id: "old", name: "Last year", fiscalYear: 2025 });
+      window.lines.push({ ...window.lines[0], id: "line-b", budgetId: "budget-b", amount: 200 });
+      window.renderBudgetHealth();
+    });
+    const selector = page.getByLabel("Active budget", { exact: true });
+    await selector.waitFor();
+    assert.deepEqual(await selector.locator("option").allTextContents(), ["Active annual plan", "Second active plan"]);
+    await selector.selectOption("budget-b");
+    const card = page.getByRole("article", { name: "Budget Health" });
+    await card.locator("dd").first().filter({ hasText: "200.00" }).waitFor();
+    assert.deepEqual(await card.locator("dd").allTextContents(), ["\u20b1200.00", "\u20b1200.00", "\u20b10.00", "100%"]);
+    assert.equal(await card.locator(".status").innerText(), "Warning");
+    const calls = await page.evaluate(() => window.calls.filter(call => call.name.startsWith("loadBudget")));
+    for (const call of calls) assert.equal(call.args[0], "church-a");
+    assert.ok(calls.some(call => call.name === "loadBudgetLines" && call.args[1] === "budget-b"));
+  } finally { await page.close(); }
+});
+
+test("Budget Health handles missing budgets, failed loads, and spending with no allocation", async () => {
+  const page = await healthPage();
+  try {
+    await page.evaluate(() => { window.budgets[0].status = "Draft"; window.renderBudgetHealth(); });
+    await page.getByRole("heading", { name: "No active budget" }).waitFor();
+    await page.evaluate(() => { window.budgets[0].status = "Active"; window.fail = "loadBudgetLines"; window.renderBudgetHealth(); });
+    await page.getByRole("alert").filter({ hasText: "Test permission failure" }).waitFor();
+    await page.evaluate(() => { window.fail = null; window.lines = []; });
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    const card = page.getByRole("article", { name: "Budget Health" });
+    await card.locator(".status").filter({ hasText: "Over Budget" }).waitFor();
+    assert.deepEqual(await card.locator("dd").allTextContents(), ["\u20b10.00", "\u20b1200.00", "-\u20b1200.00", "Not applicable"]);
   } finally { await page.close(); }
 });

@@ -12,6 +12,7 @@ test("leadership dashboard exposes the requested KPIs and visual summaries", () 
     FinancialTrendChart: ["Income trend"],
     ExpenseCategoryPanel: ["Expense categories"],
     AccountBalancePanel: ["Account balances"],
+    BudgetHealthCard: ["Budget Health", "Total budget", "Actual approved expenses", "Remaining budget", "Usage percentage", "Healthy", "Warning", "Over Budget"],
     DashboardActivityFeed: ["Recent activity"],
   };
   for (const [component, labels] of Object.entries(sections)) {
@@ -27,6 +28,11 @@ test("leadership dashboard exposes the requested KPIs and visual summaries", () 
   assert.match(dashboard, /<DashboardActivityFeed\s+isAdmin=\{isAdmin\}/);
   assert.match(activity, /isAdmin&&\(latestUserActivity/);
   assert.match(activity, /User and audit activity is visible only to administrators/);
+  assert.match(dashboard, /canApproveFinance\s*&&\s*<BudgetHealthCard\s+churchId=\{churchId\}\s+data=\{data\}/);
+  const budgetHealth = read("src/components/dashboard/BudgetHealthCard.tsx");
+  assert.match(budgetHealth, /!hasChurchRole\(activeRole, accountManagerRoles\)/);
+  assert.match(budgetHealth, /activeChurch\?\.id !== churchId/);
+  assert.match(budgetHealth, /buildBudgetVsActualReport\(selected, allocation\.lines, data\)/);
   assert.match(metrics, /canApproveFinance&&<article/);
   assert.match(actions, /canApproveFinance&&<button/);
   assert.match(actions, /disabled=\{!canWriteFinance\} onClick=\{onRecordIncome\}/);

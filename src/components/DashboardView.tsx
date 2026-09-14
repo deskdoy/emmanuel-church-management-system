@@ -7,6 +7,7 @@ import { DashboardMetrics, DashboardMetricsSkeleton } from "./dashboard/Dashboar
 import { DashboardQuickActions } from "./dashboard/DashboardQuickActions";
 import { FinancialTrendChart } from "./dashboard/FinancialTrendChart";
 import { ExpenseCategoryPanel } from "./dashboard/ExpenseCategoryPanel";
+import { BudgetHealthCard } from "./dashboard/BudgetHealthCard";
 import { AccountBalancePanel } from "./dashboard/AccountBalancePanel";
 import { DashboardActivityFeed } from "./dashboard/DashboardActivityFeed";
 import { ProjectGoalsPanel } from "./ProjectGoalsPanel";
@@ -58,6 +59,7 @@ export function DashboardView({churchId,data,isAdmin,canWriteFinance,canApproveF
       payables={data.payables}
       pendingApprovalCount={pendingApprovalCount}
     />
+    {canApproveFinance && <BudgetHealthCard churchId={churchId} data={data} asOf={reportingDate} />}
     <section className="dashboard-reporting-grid">
       <FinancialTrendChart trend={trend} trendMax={trendMax}/>
       <ExpenseCategoryPanel expenses={expenses} expenseMax={expenseMax}/>
