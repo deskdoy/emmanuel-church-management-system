@@ -1,0 +1,11 @@
+.family-workspace { display: grid; gap: 20px; min-width: 0; }
+.family-workspace .panel, .family-workspace .project-card { min-width: 0; }
+.family-toolbar, .family-actions { flex-wrap: wrap; gap: 12px; }
+.family-workspace h2, .family-workspace h3, .family-workspace td, .family-workspace p { overflow-wrap: anywhere; }
+.family-notes { white-space: pre-wrap; }
+.family-workspace select { width: 100%; min-width: 0; }
+@media (max-width: 640px) {
+  .family-workspace .project-grid { grid-template-columns: 1fr; }
+  .family-workspace .family-actions { width: 100%; }
+  .family-workspace .family-actions button { flex: 1 1 auto; }
+}

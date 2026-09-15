@@ -19,7 +19,7 @@ const details = {
   emergency_contact_phone: "+63 912 345 6789", baptism_date: "2020-02-15",
 };
 const member = {
-  id: "member-a", church_id: "church-a", created_by: "original-user",
+  id: "member-a", church_id: "church-a", family_id: "family-a", created_by: "original-user",
   first_name: "Ana", middle_name: "Maria", last_name: "Santos", birth_date: "1990-03-12",
   joined_at: "2019-01-01", phone: "09123456789", email: "ana@example.test", address: "Main Street",
   membership_status: "Active", ministry: "Choir", notes: "Member notes", ...details,
@@ -47,6 +47,7 @@ function setup({ existing, failure } = {}) {
     require: id => {
       if (id === "react") return { ...React, useState: initial => [initial, value => state.updates.push(value)] };
       if (id === "react/jsx-runtime") return jsx;
+      if (id === "./families/MemberFamilyFields") return { MemberFamilySelect: () => null };
       if (id === "../lib/supabase") return { supabase };
       throw new Error(`Unexpected dependency: ${id}`);
     },
@@ -128,6 +129,7 @@ test("member profile displays enhanced details, escaped values, and empty placeh
   vm.runInNewContext(profileCode, { exports, require: id => {
     if (id === "react") return React;
     if (id === "react/jsx-runtime") return jsx;
+    if (id === "./families/MemberFamilyFields") return { MemberFamilyName: () => null };
     if (id === "./MemberForm") return { MemberForm: () => null };
     if (id === "./InviteMemberModal") return { InviteMemberModal: () => null };
     if (id === "../services/memberAccessStatus") return { loadMemberAccessStatus: async () => ({ status: "none" }) };
@@ -151,4 +153,25 @@ test("member profile displays enhanced details, escaped values, and empty placeh
 test("member directory retains Admin-only application access and current church props", () => {
   const page = read("app/page.tsx");
   assert.match(page, /view\s*===\s*"members"\s*&&\s*isChurchAdmin\s*&&\s*profile\s*&&\s*activeChurch\s*&&\s*<MembersView\s+churchId=\{activeChurch\.id\}\s+userId=\{profile\.id\}/);
+});
+
+test("member saves assign, change, and clear family in the same church-scoped write", async () => {
+  for (const familyId of ["family-a", "family-b", ""]) {
+    const { save, requests } = setup({ existing: member });
+    await save({ ...member, family_id: familyId });
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url.searchParams.get("church_id"), "eq.church-a");
+    assert.equal(requests[0].url.searchParams.get("id"), "eq.member-a");
+    assert.equal(requests[0].payload.family_id, familyId || null);
+    assert.equal(requests[0].payload.first_name, member.first_name);
+    assert.equal(requests[0].payload.member_number, member.member_number);
+  }
+});
+
+test("member edits preserve assigned family when its selector is disabled or unavailable", async () => {
+  const { save, requests } = setup({ existing: member });
+  const { family_id, ...values } = member;
+  await save({ ...values, notes: "Updated notes" });
+  assert.equal(requests[0].payload.family_id, "family-a");
+  assert.equal(requests[0].payload.notes, "Updated notes");
 });

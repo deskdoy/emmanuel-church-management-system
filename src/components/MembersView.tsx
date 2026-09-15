@@ -21,6 +21,7 @@ type Member = {
   id: string;
   church_id: string;
   created_by: string;
+  family_id: string | null;
   member_number: string | null;
   gender: string | null;
   emergency_contact_name: string | null;
@@ -92,6 +93,7 @@ let query =
 id,
 church_id,
 created_by,
+family_id,
 member_number,
 gender,
 emergency_contact_name,

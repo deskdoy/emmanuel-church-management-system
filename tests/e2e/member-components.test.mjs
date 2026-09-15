@@ -54,12 +54,21 @@ async function pageFor() {
   await page.setContent('<main id="root"></main>');
   await page.evaluate(() => {
     window.requests = [];
+    window.families = [
+      { id: "family-a", church_id: "church-a", name: "Santos family" },
+      { id: "family-a2", church_id: "church-a", name: "Reyes family" },
+      { id: "family-b", church_id: "church-b", name: "Other church family" },
+    ];
     window.rows = [{ id: "other-member", church_id: "church-b", first_name: "Other church", last_name: "Member" }];
     window.memberFetch = async (url, init) => {
       const parsed = new URL(url);
-      if (parsed.origin !== "https://member-tests.invalid" || parsed.pathname !== "/rest/v1/members") throw new Error("Unexpected request");
+      if (parsed.origin !== "https://member-tests.invalid" || !["/rest/v1/members", "/rest/v1/families"].includes(parsed.pathname)) throw new Error("Unexpected request");
       const payload = init.body ? JSON.parse(init.body) : null;
-      window.requests.push({ method: init.method, query: Object.fromEntries(parsed.searchParams), payload });
+      window.requests.push({ table: parsed.pathname.split("/").at(-1), method: init.method, query: Object.fromEntries(parsed.searchParams), payload });
+      if (parsed.pathname === "/rest/v1/families") {
+        if (window.familyReadError) return new Response(JSON.stringify({ message: "Family lookup failed" }), { status: 403 });
+        return new Response(JSON.stringify(window.families.filter(row => parsed.searchParams.get("church_id") === `eq.${row.church_id}`)), { status: 200 });
+      }
       if (init.method !== "GET" && window.writeError) return new Response(JSON.stringify({ message: window.writeError }), { status: 403 });
       if (init.method === "POST") window.rows.push({ id: "member-a", joined_at: "2026-09-14", ...payload });
       if (init.method === "PATCH") window.rows = window.rows.map(row =>
@@ -79,11 +88,12 @@ const fields = {
   "Member Number": "M-001", Gender: "Female", "Baptism Date": "2020-02-15",
   "Emergency Contact Name": "Grace Santos", "Emergency Contact Phone": "+63 912 345 6789",
 };
-async function addMember(page) {
+async function addMember(page, familyId) {
   await page.getByRole("button", { name: "Add Member", exact: true }).click();
   await page.getByLabel("First Name", { exact: true }).fill("Ana");
   await page.getByLabel("Last Name", { exact: true }).fill("Santos");
   for (const [label, value] of Object.entries(fields)) await page.getByLabel(label, { exact: true }).fill(value);
+  if (familyId) await page.getByLabel("Family", { exact: true }).selectOption(familyId);
   await page.getByRole("button", { name: "Save Member", exact: true }).click();
   await page.getByRole("button", { name: "View", exact: true }).click();
 }
@@ -111,7 +121,7 @@ test("member create/edit refreshes every enhanced profile field within the curre
     for (const request of requests) {
       if (request.method === "POST") assert.equal(request.payload.church_id, "church-a");
       else assert.equal(request.query.church_id, "eq.church-a");
-      if (request.method === "GET") for (const name of ["member_number", "gender", "baptism_date", "emergency_contact_name", "emergency_contact_phone"]) assert.ok(request.query.select.split(",").includes(name));
+      if (request.method === "GET" && request.table === "members") for (const name of ["family_id", "member_number", "gender", "baptism_date", "emergency_contact_name", "emergency_contact_phone"]) assert.ok(request.query.select.split(",").includes(name));
     }
     assert.equal(requests.find(request => request.method === "PATCH").query.id, "eq.member-a");
     assert.equal(await page.getByText("Other church Member", { exact: true }).count(), 0);
@@ -138,6 +148,50 @@ test("member edit supports cancellation, failed-save retry, and clearing optiona
     await page.evaluate(() => { window.writeError = null; });
     await page.getByRole("button", { name: "Save Member", exact: true }).click();
     await assertDetails(page, Object.fromEntries(Object.keys(fields).map(label => [label, "-"])));
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+
+test("member family selection saves, prefills, displays, changes, and unlinks within the church", async () => {
+  const { page, errors } = await pageFor();
+  try {
+    await addMember(page, "family-a");
+    await assertDetails(page, { Family: "Santos family", ...fields });
+    for (const [id, name] of [["family-a2", "Reyes family"], ["", "No family"]]) {
+      await page.getByRole("button", { name: "Edit", exact: true }).click();
+      await page.getByRole("option", { name: "Santos family", exact: true }).waitFor({ state: "attached" });
+      assert.equal(await page.getByLabel("Family", { exact: true }).inputValue(), id ? "family-a" : "family-a2");
+      assert.equal(await page.getByRole("option", { name: "Other church family", exact: true }).count(), 0);
+      await page.getByLabel("Family", { exact: true }).selectOption(id);
+      await page.getByRole("button", { name: "Save Member", exact: true }).click();
+      await assertDetails(page, { Family: name, ...fields });
+    }
+    const requests = await page.evaluate(() => window.requests);
+    for (const request of requests.filter(request => request.method === "GET" || request.method === "PATCH")) assert.equal(request.query.church_id, "eq.church-a");
+    const writes = requests.filter(request => request.method === "POST" || request.method === "PATCH");
+    assert.deepEqual(writes.map(request => request.payload.family_id), ["family-a", "family-a2", null]);
+    assert.equal(writes.length, 3, "Member and family changes must save atomically");
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test("failed family loading preserves assignment during member edits and supports retry", async () => {
+  const { page, errors } = await pageFor();
+  try {
+    await addMember(page, "family-a");
+    await assertDetails(page, { Family: "Santos family" });
+    await page.evaluate(() => { window.familyReadError = true; });
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page.getByRole("button", { name: "Retry families", exact: true }).waitFor();
+    assert.equal(await page.getByLabel("Family", { exact: true }).isDisabled(), true);
+    await page.getByLabel("Notes", { exact: true }).fill("Saved with family lookup unavailable");
+    await page.getByRole("button", { name: "Save Member", exact: true }).click();
+    await page.getByRole("button", { name: "Retry family", exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.rows.find(row => row.id === "member-a").family_id), "family-a");
+    await page.evaluate(() => { window.familyReadError = false; });
+    await page.getByRole("button", { name: "Retry family", exact: true }).click();
+    await assertDetails(page, { Family: "Santos family", Notes: "Saved with family lookup unavailable" });
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });

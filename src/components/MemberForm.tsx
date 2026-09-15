@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { MemberFamilySelect } from "./families/MemberFamilyFields";
 import { supabase } from "../lib/supabase";
 const client = () => {
 
@@ -20,6 +21,7 @@ type MemberFormProps = {
   member?: {
     created_by: string;
     id: string;
+    family_id: string | null;
     member_number: string | null;
     gender: string | null;
     emergency_contact_name: string | null;
@@ -91,6 +93,11 @@ export function MemberForm({
       church_id:
         churchId,
 
+      // Disabled family selectors are omitted by FormData. Preserve the current
+      // assignment when options are loading or unavailable.
+      family_id: form.has("family_id")
+        ? String(form.get("family_id") || "") || null
+        : member?.family_id || null,
       member_number: String(form.get("member_number") || "").trim() || null,
       gender: String(form.get("gender") || ""),
       emergency_contact_name: String(form.get("emergency_contact_name") || ""),
@@ -219,6 +226,7 @@ if (member) {
     >
 
       <div className="form-grid">
+        <MemberFamilySelect key={`${churchId}:${member?.id || "new"}`} churchId={churchId} familyId={member?.family_id || null} disabled={saving} />
         <label>
           Member Number
           <input name="member_number" defaultValue={member?.member_number || ""} />

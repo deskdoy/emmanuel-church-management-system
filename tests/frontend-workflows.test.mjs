@@ -17,12 +17,12 @@ test("financial navigation and entry actions are restored", () => {
   }
   assertNavigationWiring(page);
   const nav = getNavigationItems({ isChurchAdmin: true, canApproveFinance: true });
-  const labels = ["Dashboard", "Transactions", "Offerings", "Donations", "Expenses", "Payables", "Accounts", "Categories", "Payment Methods", "Budget Planning", "Projects", "Reports", "Members", "Users", "Audit Logs", "Backup Center", "System Information", "Financial Approvals", "Settings"];
+  const labels = ["Dashboard", "Transactions", "Offerings", "Donations", "Expenses", "Payables", "Accounts", "Categories", "Payment Methods", "Budget Planning", "Projects", "Families", "Reports", "Members", "Users", "Audit Logs", "Backup Center", "System Information", "Financial Approvals", "Settings"];
   assert.deepEqual(nav.map(([, , label]) => label), labels);
   assert.deepEqual(navigationSections.map(section => nav.filter(([key]) => navigationSectionByView[key] === section).map(([key]) => key)), [
     ["dashboard"],
     ["transactions", "offerings", "donations", "expenses", "payables", "accounts", "categories", "payment-methods", "budgets", "reports", "financial-approvals"],
-    ["projects", "members"],
+    ["projects", "families", "members"],
     ["users", "audit", "backup", "system", "settings"],
   ]);
   assert.match(page, /view\s*===\s*"expenses"\s*&&\s*activeChurch\s*&&\s*profile\s*&&\s*<ExpensesView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}\s+userId\s*=\s*\{\s*profile\.id\s*\}\s*\/>/);
@@ -193,7 +193,7 @@ test("public access requests and Admin approval workflow are secured", () => {
 test("view registry keeps restricted navigation out of other church roles", () => {
   const page = read("app/page.tsx");
   assertNavigationWiring(page);
-  const publicViews = ["dashboard", "transactions", "offerings", "donations", "expenses", "payables", "accounts", "categories", "payment-methods", "budgets", "projects", "reports"];
+  const publicViews = ["dashboard", "transactions", "offerings", "donations", "expenses", "payables", "accounts", "categories", "payment-methods", "budgets", "projects", "families", "reports"];
   for (const role of ["Admin", "Treasurer", "Pastor", "Secretary", "Encoder", "Viewer", null]) {
     const items = getNavigationItems({ isChurchAdmin: role === "Admin", canApproveFinance: role === "Admin" || role === "Treasurer" });
     const expected = [...publicViews];
@@ -225,4 +225,12 @@ test("view headings cover every view and preserve personalized greeting boundari
     assert.ok(headings[key].every(text => typeof text === "string" && text.length > 0));
   }
   assert.equal(headings.audit[0], "Audit logs");
+});
+
+test("Families is registered in Ministry and rendered with the active church", () => {
+  const page = read("app/page.tsx");
+  assert.equal(navigationSectionByView.families, "Ministry");
+  assert.equal(getViewHeadings(null).families[0], "Families");
+  assert.match(page, /import\s*\{\s*FamilyView\s*\}\s*from\s*"\.\.\/src\/components\/families\/FamilyView"/);
+  assert.match(page, /view\s*===\s*"families"\s*&&\s*activeChurch\s*&&\s*<FamilyView\s+churchId=\{activeChurch\.id\}\s*\/>/);
 });

@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { MemberFamilyName } from "./families/MemberFamilyFields";
 import { MemberForm } from "./MemberForm";
 import { InviteMemberModal } from "./InviteMemberModal";
 import {
@@ -14,6 +15,7 @@ type MemberProfileProps = {
     id: string;
     church_id: string;
     created_by: string;
+    family_id: string | null;
     member_number: string | null;
     gender: string | null;
     emergency_contact_name: string | null;
@@ -200,6 +202,10 @@ useEffect(() => {
         !editing && (
 
           <div className="detail-grid">
+            <div>
+              <span>Family</span>
+              <MemberFamilyName key={`${member.church_id}:${member.family_id || "none"}`} churchId={member.church_id} familyId={member.family_id} />
+            </div>
             <div>
               <span>Member Number</span>
               <b>{member.member_number || "-"}</b>
