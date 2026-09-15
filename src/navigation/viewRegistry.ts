@@ -16,6 +16,7 @@ export type View =
   | "reports"
   | "members"
   | "families"
+  | "attendance"
   | "users"
   | "audit"
   | "backup"
@@ -42,6 +43,7 @@ export const navigationSectionByView: Record<View, typeof navigationSections[num
   projects: "Ministry",
   members: "Ministry",
   families: "Ministry",
+  attendance: "Ministry",
   users: "Administration",
   audit: "Administration",
   backup: "Administration",
@@ -70,6 +72,7 @@ export function getViewHeadings(
     projects: ["Projects", "Plan and follow church initiatives in one place."],
     reports: ["Reports", "Generate statements and review cash flow analytics."],
     families: ["Families", "Manage family groups and church member connections."],
+    attendance: ["Attendance", "Record attendance and review member and family attendance history."],
     members: ["Members", "Manage church members, profiles, and ministry information."],
     users: ["Users", "Manage approved users, roles, and account status."],
     audit: ["Audit logs", "Review secured, immutable records of activity across the system."],
@@ -97,6 +100,7 @@ export function getNavigationItems({ isChurchAdmin, canApproveFinance }: {
     ["budgets", "reports", "Budget Planning"],
     ["projects", "projects", "Projects"],
     ["families", "users", "Families"],
+    ["attendance", "users", "Attendance"],
     ["reports", "reports", "Reports"],
   ];
   if (isChurchAdmin) {

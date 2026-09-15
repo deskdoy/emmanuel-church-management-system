@@ -1,0 +1,8 @@
+.attendance-workspace { display: grid; gap: 20px; min-width: 0; }
+.attendance-workspace .panel { min-width: 0; }
+.attendance-workspace .panel-head, .attendance-actions { flex-wrap: wrap; gap: 12px; }
+.attendance-workspace h2, .attendance-workspace h3, .attendance-workspace p, .attendance-workspace td { overflow-wrap: anywhere; }
+.attendance-workspace select { min-width: 0; width: 100%; }
+@media (max-width: 640px) {
+  .attendance-actions button { flex: 1 1 auto; }
+}

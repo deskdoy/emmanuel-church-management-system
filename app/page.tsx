@@ -14,6 +14,7 @@ import { SettingsView } from "../src/components/SettingsView";
 import { FinancialApprovalView } from "../src/components/FinancialApprovalView";
 import { SystemInformationView } from "../src/components/SystemInformationView";
 import { FamilyView } from "../src/components/families/FamilyView";
+import { AttendanceView } from "../src/components/attendance/AttendanceView";
 import { MembersView } from "../src/components/MembersView";
 import { CategoryManagementView } from "../src/components/CategoryManagementView";
 import { PaymentMethodsView } from "../src/components/PaymentMethodsView";
@@ -233,6 +234,7 @@ function ChurchWorkspace() {
       {view === "projects" && activeChurch&&<ProjectsView churchId={activeChurch.id} canManage={hasChurchRole(activeRole,projectManagerRoles)}/>}
       {view === "reports" && <ReportsView data={data} />}
       {view === "families" && activeChurch && <FamilyView churchId={activeChurch.id} />}
+      {view === "attendance" && activeChurch && <AttendanceView churchId={activeChurch.id} />}
       {view === "members" &&
  isChurchAdmin &&
  profile &&
