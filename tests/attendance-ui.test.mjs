@@ -7,6 +7,7 @@ import React from "react";
 import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import * as attendanceTypes from "../src/components/attendance/types.ts";
+import * as attendanceCalculations from "../src/reporting/attendanceCalculations.ts";
 
 const directory = { churchId: "church-a", members: [], families: [], events: [{ id: "event-a", churchId: "church-a", title: "Sunday worship", startsAt: "2026-09-15T09:00:00Z" }] };
 const session = { eventId: "event-a", attendanceDate: "2026-09-15" };
@@ -20,6 +21,7 @@ function setup(role = "Admin", churchId = "church-a", mode = "church") {
     vm.runInNewContext(code, { exports, require: id => {
       if (id === "react") return React;
       if (id === "react/jsx-runtime") return jsx;
+      if (id.endsWith("/attendanceCalculations")) return attendanceCalculations;
       if (id === "./types") return attendanceTypes;
       if (id.startsWith("./Attendance")) return compile(id.slice(2));
       if (id.endsWith(".css")) return {};
@@ -32,7 +34,7 @@ function setup(role = "Admin", churchId = "church-a", mode = "church") {
     } });
     return exports;
   }
-  return { ...compile("AttendanceView"), ...compile("AttendanceSessionForm"), ...compile("AttendanceRegister"), ...compile("AttendanceHistory") };
+  return { ...compile("AttendanceView"), ...compile("AttendanceSessionForm"), ...compile("AttendanceRegister"), ...compile("AttendanceHistory"), ...compile("AttendanceReports") };
 }
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
 
@@ -83,4 +85,23 @@ test("attendance history starts with a loading state and accessible event/member
   for (const label of ["History for", "From date", "To date", "All attendance", "Event", "Member", "Family"]) assert.ok(html.includes(label));
   assert.match(html, /Loading attendance history/);
   assert.match(render(AttendanceView, { churchId: "church-a" }), /Loading attendance data/);
+});
+
+
+test("attendance reports allow existing church readers and reject invalid workspaces", () => {
+  for (const role of ["Admin", "Pastor", "Secretary", "Encoder", "Treasurer", "Viewer"]) {
+    const { AttendanceReports } = setup(role);
+    const html = render(AttendanceReports, { churchId: "church-a", directory });
+    assert.match(html, /Loading attendance reports/);
+    assert.match(html, /Unrecorded attendance is excluded/);
+    assert.doesNotMatch(html, /Save attendance|Update attendance/);
+  }
+  for (const [role, churchId, mode] of [[null, "church-a", "church"], ["Admin", "church-b", "church"], ["Admin", "church-a", "platform"]]) {
+    const { AttendanceReports } = setup(role, churchId, mode);
+    const html = render(AttendanceReports, { churchId: "church-a", directory });
+    assert.match(html, /Choose a church workspace/);
+    assert.doesNotMatch(html, /Loading attendance reports/);
+  }
+  const { AttendanceReports } = setup();
+  assert.match(render(AttendanceReports, { churchId: "church-a", directory: { ...directory, churchId: "church-b" } }), /Choose a church workspace/);
 });

@@ -7,6 +7,7 @@ import { LoadingSkeleton } from "../ui/LoadingSkeleton";
 import { AttendanceSessionForm } from "./AttendanceSessionForm";
 import { AttendanceRegister } from "./AttendanceRegister";
 import { AttendanceHistory } from "./AttendanceHistory";
+import { AttendanceReports } from "./AttendanceReports";
 import type { AttendanceDirectory, AttendanceSession } from "./types";
 import "./attendance.css";
 
@@ -22,7 +23,7 @@ function AttendanceWorkspace({ churchId }: { churchId: string }) {
   const [directory, setDirectory] = useState<AttendanceDirectory | null>(null);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
-  const [section, setSection] = useState<"register" | "history">("register");
+  const [section, setSection] = useState<"register" | "history" | "reports">("register");
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -52,10 +53,12 @@ function AttendanceWorkspace({ churchId }: { churchId: string }) {
       <div className="row-actions attendance-actions">
         <button className="outline-button" aria-pressed={section === "register"} disabled={saving} onClick={() => setSection("register")}>Attendance register</button>
         <button className="outline-button" aria-pressed={section === "history"} disabled={saving} onClick={() => setSection("history")}>Attendance history</button>
+        <button className="outline-button" aria-pressed={section === "reports"} disabled={saving} onClick={() => setSection("reports")}>Attendance reports</button>
       </div>
     </section>
     {error ? <div className="error-banner" role="alert">{error}<button onClick={() => setReload(value => value + 1)}>Try again</button></div>
       : !directory ? <section className="panel"><LoadingSkeleton rows={4} label="Loading attendance data" /></section>
+      : section === "reports" ? <AttendanceReports churchId={churchId} directory={directory} />
       : section === "history" ? <AttendanceHistory churchId={churchId} directory={directory} />
       : session ? <><div className="row-actions"><button className="outline-button" disabled={saving} onClick={() => setSession(null)}>Change session</button></div>
         <AttendanceRegister key={`${session.eventId || "general"}:${session.attendanceDate}`} churchId={churchId} directory={directory} session={session} onSavingChange={setSaving} /></>

@@ -209,3 +209,69 @@ test("attendance directory failures retry and empty church data supports a gener
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });
+
+
+test("attendance reports display scoped rates, member history, family summaries and trends without writes", async () => {
+  const { page, errors } = await pageFor("Viewer");
+  try {
+    await page.evaluate(() => { window.records = [
+      { id: "one", churchId: "church-a", memberId: "member-a", eventId: "event-a", attendanceDate: "2026-09-15", status: "Present" },
+      { id: "two", churchId: "church-a", memberId: "member-a", eventId: null, attendanceDate: "2026-09-16", status: "Late" },
+      { id: "three", churchId: "church-a", memberId: "member-c", eventId: "event-a", attendanceDate: "2026-09-15", status: "Absent" },
+      { id: "four", churchId: "church-a", memberId: "member-c", eventId: "event-a", attendanceDate: "2026-09-16", status: "Excused" },
+      { id: "foreign", churchId: "church-b", memberId: "member-b", eventId: "event-b", attendanceDate: "2026-09-15", status: "Present" },
+    ]; });
+    await page.getByRole("button", { name: "Attendance reports", exact: true }).click();
+    const overall = page.getByRole("region", { name: "Overall attendance summary", exact: true });
+    await overall.getByText("50%", { exact: true }).waitFor();
+    await page.getByLabel("Member", { exact: true }).selectOption("member-a");
+    const history = page.getByRole("region", { name: "Member attendance report", exact: true });
+    await history.getByText("100%", { exact: true }).waitFor();
+    assert.deepEqual(await history.locator("tbody tr td:first-child").allTextContents(), ["2026-09-16", "2026-09-15"]);
+    const families = page.getByRole("region", { name: "Family attendance summary", exact: true });
+    await families.getByText("Santos family", { exact: true }).waitFor();
+    await families.getByText("100%", { exact: true }).waitFor();
+    assert.equal(await page.getByText("Other family", { exact: true }).count(), 0);
+    assert.equal(await page.getByRole("option", { name: "Other Church", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("progressbar").count(), 2);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await page.getByLabel("From date", { exact: true }).fill("2026-09-16");
+    assert.equal(await history.locator("tbody tr").count(), 1);
+    await page.getByLabel("To date", { exact: true }).fill("2026-09-15");
+    await page.getByRole("alert").getByText("From date must be on or before To date.").waitFor();
+    await page.getByLabel("To date", { exact: true }).fill("2026-09-17");
+    await page.getByLabel("From date", { exact: true }).fill("2026-09-17");
+    await page.getByRole("heading", { name: "No attendance records", exact: true }).waitFor();
+    const calls = await page.evaluate(() => window.calls);
+    assert.ok(calls.some(call => call.name === "loadAttendanceRecords" && call.args[0] === "church-a"));
+    assert.ok(calls.every(call => call.name === "directory" ? call.args[0].church_id === "church-a" : call.args[0] === "church-a"));
+    assert.ok(calls.every(call => !["recordAttendance", "updateAttendance"].includes(call.name)));
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test("attendance reports handle loading, failed reads, retry and church changes", async () => {
+  const { page, errors } = await pageFor();
+  try {
+    await page.evaluate(() => { window.fail = "loadAttendanceRecords"; });
+    await page.getByRole("button", { name: "Attendance reports", exact: true }).click();
+    await page.getByRole("alert").getByText("Test permission failure").waitFor();
+    await page.evaluate(() => { window.fail = null; window.deferRead = true; });
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await page.getByRole("status", { name: "Loading attendance reports", exact: true }).waitFor();
+    await page.waitForFunction(() => !!window.resolveRead);
+    await page.evaluate(() => {
+      window.oldRead = window.resolveRead;
+      window.deferRead = false;
+      window.renderAttendance("Viewer", "church-b");
+    });
+    await page.getByRole("heading", { name: "Open attendance register" }).waitFor();
+    await page.getByRole("button", { name: "Attendance reports", exact: true }).click();
+    await page.getByRole("heading", { name: "No attendance records", exact: true }).waitFor();
+    await page.evaluate(() => window.oldRead([{ id: "old", churchId: "church-a", memberId: "member-a", eventId: null, attendanceDate: "2026-09-15", status: "Present" }]));
+    await page.getByRole("button", { name: "Refresh reports", exact: true }).click();
+    await page.getByRole("heading", { name: "No attendance records", exact: true }).waitFor();
+    assert.equal(await page.getByRole("region", { name: "Overall attendance summary", exact: true }).count(), 0);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});

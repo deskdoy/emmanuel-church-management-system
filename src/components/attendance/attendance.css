@@ -6,3 +6,8 @@
 @media (max-width: 640px) {
   .attendance-actions button { flex: 1 1 auto; }
 }
+
+.attendance-report-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; }
+.attendance-report-metrics dt { color: var(--muted); font-size: 0.85rem; }
+.attendance-report-metrics dd { margin: 4px 0 0; font-size: 1.3rem; font-weight: 700; }
+.attendance-workspace progress { max-width: 100%; width: 100px; }
