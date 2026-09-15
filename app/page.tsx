@@ -15,6 +15,7 @@ import { FinancialApprovalView } from "../src/components/FinancialApprovalView";
 import { SystemInformationView } from "../src/components/SystemInformationView";
 import { FamilyView } from "../src/components/families/FamilyView";
 import { AttendanceView } from "../src/components/attendance/AttendanceView";
+import { EventView } from "../src/components/events/EventView";
 import { MembersView } from "../src/components/MembersView";
 import { CategoryManagementView } from "../src/components/CategoryManagementView";
 import { PaymentMethodsView } from "../src/components/PaymentMethodsView";
@@ -235,6 +236,7 @@ function ChurchWorkspace() {
       {view === "reports" && <ReportsView data={data} />}
       {view === "families" && activeChurch && <FamilyView churchId={activeChurch.id} />}
       {view === "attendance" && activeChurch && <AttendanceView churchId={activeChurch.id} />}
+      {view === "events" && activeChurch && <EventView churchId={activeChurch.id} />}
       {view === "members" &&
  isChurchAdmin &&
  profile &&
