@@ -1,0 +1,13 @@
+.announcement-workspace { display: grid; gap: 20px; min-width: 0; }
+.announcement-workspace .panel { min-width: 0; }
+.announcement-workspace .panel-head, .announcement-actions { flex-wrap: wrap; gap: 12px; }
+.announcement-workspace h2, .announcement-workspace h3, .announcement-workspace p { overflow-wrap: anywhere; }
+.announcement-workspace input, .announcement-workspace textarea { min-width: 0; }
+.announcement-content { white-space: pre-wrap; }
+.announcement-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.announcement-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.announcement-details dt { color: var(--muted); font-size: 0.85rem; }
+.announcement-details dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .announcement-actions button { flex: 1 1 auto; }
+}
