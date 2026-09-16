@@ -1,5 +1,7 @@
 import { useId, useState, type FormEvent } from "react";
 import type { AnnouncementInput, AnnouncementRecord } from "../../services/announcements";
+import type { AnnouncementTargetInput } from "../../services/announcementTargets";
+import { AnnouncementAudienceEditor } from "./AnnouncementAudienceEditor";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
 import { hasChurchRole } from "../../tenancy/permissions";
 import { announcementManagerRoles, announcementTimeInput, announcementTimeToISO } from "./announcementHelpers";
@@ -10,7 +12,7 @@ export interface AnnouncementFormProps {
   announcement?: AnnouncementRecord;
   saving: boolean;
   error?: string;
-  onSubmit: (input: AnnouncementInput) => Promise<void>;
+  onSubmit: (input: AnnouncementInput, targets?: AnnouncementTargetInput[]) => Promise<void>;
   onCancel: () => void;
 }
 export function AnnouncementForm(props: AnnouncementFormProps) {
@@ -19,8 +21,9 @@ export function AnnouncementForm(props: AnnouncementFormProps) {
     || workspaceMode !== "church" || !hasChurchRole(activeRole, announcementManagerRoles)) return null;
   return <DetailsForm key={`${props.churchId}:${props.announcement?.id || "new"}:${activeRole}:${scopeVersion}`} {...props} />;
 }
-function DetailsForm({ announcement, saving, error, onSubmit, onCancel }: AnnouncementFormProps) {
+function DetailsForm({ churchId, announcement, saving, error, onSubmit, onCancel }: AnnouncementFormProps) {
   const contentId = useId();
+  const [targets, setTargets] = useState<AnnouncementTargetInput[] | undefined>(undefined);
   const [validation, setValidation] = useState("");
   const [initialPublishTime] = useState(() => announcementTimeInput(announcement?.publishAt || new Date().toISOString()));
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -35,7 +38,7 @@ function DetailsForm({ announcement, saving, error, onSubmit, onCancel }: Announ
       const expiry = String(form.get("expiresAt") || "");
       const expiresAt = expiry ? announcementTimeToISO(expiry, announcement?.expiresAt) : null;
       if (expiresAt && Date.parse(expiresAt) < Date.parse(publishAt)) throw new Error("Expiry time must be on or after publish time.");
-      void onSubmit({ title, content, publishAt, expiresAt });
+      void onSubmit({ title, content, publishAt, expiresAt }, targets);
     } catch (cause) { setValidation(cause instanceof Error ? cause.message : "Unable to read announcement details."); }
   };
   return <section className="panel">
@@ -50,6 +53,7 @@ function DetailsForm({ announcement, saving, error, onSubmit, onCancel }: Announ
         <label>Expires at<input type="datetime-local" name="expiresAt" step="0.001" disabled={saving} defaultValue={announcementTimeInput(announcement?.expiresAt)} /></label>
       </div>
       <p className="form-help">Leave expiry blank for no expiration.</p>
+      <AnnouncementAudienceEditor churchId={churchId} announcementId={announcement?.id} saving={saving} onChange={setTargets} />
       <div className="row-actions announcement-actions"><button type="button" className="outline-button" disabled={saving} onClick={onCancel}>Cancel</button>
         <button type="submit" className="primary-button" disabled={saving}>{saving ? "Saving..." : announcement ? "Save changes" : "Save draft"}</button></div>
     </form>

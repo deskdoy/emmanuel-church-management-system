@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { deleteAnnouncement, publishAnnouncement, updateAnnouncement, type AnnouncementInput, type AnnouncementRecord } from "../../services/announcements";
+import type { AnnouncementTargetInput } from "../../services/announcementTargets";
+import { saveAudienceTargets } from "./announcementAudience";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
 import { hasChurchRole } from "../../tenancy/permissions";
 import type { RoleName } from "../../types";
@@ -30,12 +32,18 @@ function Profile({ churchId, announcement, onBack, onAnnouncementChange, onDelet
   const [notice, setNotice] = useState("");
   const alive = useRef(true), busy = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const save = async (input: AnnouncementInput) => {
+  const save = async (input: AnnouncementInput, targets?: AnnouncementTargetInput[]) => {
     if (!canManage || busy.current) return;
     busy.current = true; setSaving(true); setError(""); setNotice("");
     try {
       const updated = await updateAnnouncement(churchId, announcement.id, input);
-      if (alive.current) { onAnnouncementChange(updated); setEditing(false); setNotice("Announcement updated."); }
+      if (!alive.current) return;
+      onAnnouncementChange(updated);
+      if (targets !== undefined) {
+        try { await saveAudienceTargets(churchId, announcement.id, targets, () => alive.current); }
+        catch (cause) { throw new Error(`Announcement details saved, but audience changes are incomplete. Retry Save changes to finish. ${cause instanceof Error ? cause.message : "Unable to save audience."}`); }
+      }
+      if (alive.current) { setEditing(false); setNotice("Announcement updated."); }
     } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "Unable to update announcement."); }
     finally { busy.current = false; if (alive.current) setSaving(false); }
   };

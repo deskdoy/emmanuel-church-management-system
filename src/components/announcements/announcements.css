@@ -11,3 +11,15 @@
 @media (max-width: 640px) {
   .announcement-actions button { flex: 1 1 auto; }
 }
+
+.announcement-audience { margin: 24px 0; padding-top: 16px; border-top: 1px solid var(--line); min-width: 0; }
+.audience-controls { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 12px; }
+.audience-controls > button { justify-self: start; }
+.audience-controls select { min-width: 0; max-width: 100%; }
+.audience-targets, .audience-recipients { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.audience-targets li { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.audience-targets span, .audience-recipients li { overflow-wrap: anywhere; min-width: 0; }
+.audience-recipients { max-height: 260px; overflow-y: auto; }
+.audience-recipients small { color: var(--muted); }
+
+.audience-controls .form-grid > div { display: grid; gap: 7px; min-width: 0; }

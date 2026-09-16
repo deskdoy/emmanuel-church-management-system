@@ -13,7 +13,7 @@ function setup(role = "Admin", churchId = "church-a", mode = "church") {
   const modules = new Map();
   function compile(name) {
     if (modules.has(name)) return modules.get(name);
-    const code = ts.transpileModule(fs.readFileSync(new URL(`../src/components/announcements/${name}.tsx`, import.meta.url), "utf8"),
+    const code = ts.transpileModule(fs.readFileSync(new URL(`../src/components/announcements/${name}.${name === "announcementAudience" ? "ts" : "tsx"}`, import.meta.url), "utf8"),
       { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const exports = {}; modules.set(name, exports);
     vm.runInNewContext(code, { exports, require: id => {
@@ -21,6 +21,9 @@ function setup(role = "Admin", churchId = "church-a", mode = "church") {
       if (id === "react/jsx-runtime") return jsx;
       if (id.endsWith(".css")) return {};
       if (id === "./announcementHelpers") return helpers;
+      if (id === "./announcementAudience") return compile("announcementAudience");
+      if (id.endsWith("/lib/supabase")) return { getSupabase: () => { throw new Error("Unexpected SSR directory request"); } };
+      if (id.endsWith("/announcementTargets")) return {};
       if (id.startsWith("./Announcement")) return compile(id.slice(2));
       if (id.endsWith("/ActiveChurchContext")) return { useActiveChurch: () => ({ activeChurch: { id: churchId }, activeRole: role, workspaceMode: mode, scopeVersion: 1 }) };
       if (id.endsWith("/permissions")) return { hasChurchRole: (role, allowed) => !!role && allowed.includes(role) };
@@ -99,4 +102,17 @@ test("announcement times round-trip local inputs and reject invalid dates", () =
     assert.equal(helpers.announcementTimeToISO(input, value), new Date(value).toISOString());
   }
   for (const value of ["", "invalid", "2026-02-30T09:00", "2026-09-20T24:00", "0000-01-01T00:00"]) assert.throws(() => helpers.announcementTimeToISO(value), /valid local date/);
+});
+
+
+test("audience editor is inside the guarded announcement form and has accessible loading state", () => {
+  for (const role of ["Admin", "Pastor", "Secretary"]) {
+    const html = render(setup(role).AnnouncementForm, { announcement, saving: false });
+    assert.match(html, /aria-label="Announcement audience"/);
+    assert.match(html, /Loading audience choices/);
+    assert.match(html, /Audience changes are saved with the announcement/);
+  }
+  for (const role of ["Treasurer", "Encoder", "Viewer", null]) {
+    assert.equal(render(setup(role).AnnouncementForm, { announcement, saving: false }), "");
+  }
 });

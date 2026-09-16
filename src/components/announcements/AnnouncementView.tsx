@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { createAnnouncement, getActiveAnnouncements, loadAnnouncements, type AnnouncementInput, type AnnouncementRecord } from "../../services/announcements";
+import { createAnnouncement, updateAnnouncement, getActiveAnnouncements, loadAnnouncements, type AnnouncementInput, type AnnouncementRecord } from "../../services/announcements";
+import type { AnnouncementTargetInput } from "../../services/announcementTargets";
+import { saveAudienceTargets } from "./announcementAudience";
 import { useActiveChurch } from "../../tenancy/ActiveChurchContext";
 import { hasChurchRole } from "../../tenancy/permissions";
 import type { RoleName } from "../../types";
@@ -28,6 +30,7 @@ function Workspace({ churchId, role }: { churchId: string; role: RoleName }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const createdDraft = useRef<AnnouncementRecord | null>(null);
   const alive = useRef(true), busy = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
@@ -39,12 +42,21 @@ function Workspace({ churchId, role }: { churchId: string; role: RoleName }) {
     return () => { cancelled = true; };
   }, [churchId, filter, reload]);
   const current = result?.filter === filter ? result : null;
-  const create = async (input: AnnouncementInput) => {
+  const create = async (input: AnnouncementInput, targets?: AnnouncementTargetInput[]) => {
     if (!canManage || busy.current) return;
     busy.current = true; setSaving(true); setError("");
     try {
-      const announcement = await createAnnouncement(churchId, input);
-      if (alive.current) { setResult(previous => ({ filter, rows: [...(previous?.rows || []), announcement], error: "" })); setCreating(false); setSelectedId(announcement.id); }
+      const announcement = createdDraft.current
+        ? await updateAnnouncement(churchId, createdDraft.current.id, input)
+        : await createAnnouncement(churchId, input);
+      if (!alive.current) return;
+      createdDraft.current = announcement;
+      setResult(previous => ({ filter, rows: [...(previous?.rows || []).filter(row => row.id !== announcement.id), announcement], error: "" }));
+      if (targets !== undefined) {
+        try { await saveAudienceTargets(churchId, announcement.id, targets, () => alive.current); }
+        catch (cause) { throw new Error(`Draft saved, but audience changes are incomplete. Retry Save draft to finish without creating another draft. ${cause instanceof Error ? cause.message : "Unable to save audience."}`); }
+      }
+      if (alive.current) { createdDraft.current = null; setCreating(false); setSelectedId(announcement.id); }
     } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "Unable to create announcement."); }
     finally { busy.current = false; if (alive.current) setSaving(false); }
   };
@@ -55,7 +67,7 @@ function Workspace({ churchId, role }: { churchId: string; role: RoleName }) {
     onDeleted={() => { back(); setNotice("Announcement deleted."); }} />;
   return <section className="announcement-workspace" aria-label="Announcements">
     <section className="panel"><div className="panel-head"><div><p className="eyebrow">Church community</p><h2>Announcements</h2><p className="section-copy">Share church news and manage announcement schedules.</p></div>
-      {canManage && !creating && <button className="primary-button" disabled={!current || !!current.error} onClick={() => { setCreating(true); setError(""); setNotice(""); }}>New announcement</button>}</div>
+      {canManage && !creating && <button className="primary-button" disabled={!current || !!current.error} onClick={() => { createdDraft.current = null; setCreating(true); setError(""); setNotice(""); }}>New announcement</button>}</div>
       {!canManage && <p className="form-help">Read-only access. Admin, Pastor, and Secretary can manage announcements.</p>}
       <div className="row-actions announcement-actions"><button className="outline-button" disabled={creating} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All announcements</button>
         <button className="outline-button" disabled={creating} aria-pressed={filter === "active"} onClick={() => setFilter("active")}>Active announcements</button>
