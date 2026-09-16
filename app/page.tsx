@@ -1,31 +1,15 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../src/auth/AuthContext";
 import { useActiveChurch } from "../src/tenancy/ActiveChurchContext";
 import { accountManagerRoles, financeWriterRoles, hasChurchRole, projectManagerRoles } from "../src/tenancy/permissions";
-import { AuditLogsView } from "../src/components/AuditLogsView";
-import { BackupCenterView } from "../src/components/BackupCenterView";
-import { BudgetView } from "../src/components/budgets/BudgetView";
 import { DashboardView } from "../src/components/DashboardView";
-import { EngagementDashboard } from "../src/components/engagement/EngagementDashboard";
-import { ProjectsView } from "../src/components/ProjectsView";
-import { ReportsView } from "../src/components/ReportsView";
-import { SettingsView } from "../src/components/SettingsView";
-import { FinancialApprovalView } from "../src/components/FinancialApprovalView";
-import { SystemInformationView } from "../src/components/SystemInformationView";
-import { FamilyView } from "../src/components/families/FamilyView";
-import { AttendanceView } from "../src/components/attendance/AttendanceView";
-import { EventView } from "../src/components/events/EventView";
-import { AnnouncementView } from "../src/components/announcements/AnnouncementView";
-import { MembersView } from "../src/components/MembersView";
 import { CategoryManagementView } from "../src/components/CategoryManagementView";
 import { PaymentMethodsView } from "../src/components/PaymentMethodsView";
 import { OfferingsView } from "../src/components/OfferingsView";
 import { DonationsView } from "../src/components/DonationsView";
 import { ExpensesView } from "../src/components/ExpensesView";
-import { UsersView } from "../src/components/UsersView";
-import { PlatformAdministrationView } from "../src/components/PlatformAdministrationView";
 import { TransactionForm, type TransactionType } from "../src/components/transactions/TransactionForm";
 import { TransactionDetails } from "../src/components/transactions/TransactionDetails";
 import { PayableForm } from "../src/components/transactions/PayableForm";
@@ -38,9 +22,28 @@ import { Topbar } from "../src/components/layout/Topbar";
 import { getNavigationItems, getViewHeadings, type View } from "../src/navigation/viewRegistry";
 import { AppIcon } from "../src/components/ui/AppIcon";
 import { EmptyState } from "../src/components/ui/EmptyState";
+import { ViewLoadingFallback } from "../src/components/ui/ViewLoadingFallback";
 import { PageTransition } from "../src/components/ui/PageTransition";
 import { addPayable, addTransaction, addTransfer, createAccount, loadCashFlow, recordPayablePayment, updateAccount, updateTransaction } from "../src/services/cashflow";
 import type { Account, AccountTransfer, CashFlowData as Data, CashFlowMutation, Payable, Transaction } from "../src/types";
+
+// Keep lazy component identities stable and load feature code only when rendered.
+const BudgetView = lazy(() => import("../src/components/budgets/BudgetView").then(module => ({ default: module.BudgetView })));
+const EngagementDashboard = lazy(() => import("../src/components/engagement/EngagementDashboard").then(module => ({ default: module.EngagementDashboard })));
+const FamilyView = lazy(() => import("../src/components/families/FamilyView").then(module => ({ default: module.FamilyView })));
+const AttendanceView = lazy(() => import("../src/components/attendance/AttendanceView").then(module => ({ default: module.AttendanceView })));
+const EventView = lazy(() => import("../src/components/events/EventView").then(module => ({ default: module.EventView })));
+const AnnouncementView = lazy(() => import("../src/components/announcements/AnnouncementView").then(module => ({ default: module.AnnouncementView })));
+const MembersView = lazy(() => import("../src/components/MembersView").then(module => ({ default: module.MembersView })));
+const ProjectsView = lazy(() => import("../src/components/ProjectsView").then(module => ({ default: module.ProjectsView })));
+const ReportsView = lazy(() => import("../src/components/ReportsView").then(module => ({ default: module.ReportsView })));
+const AuditLogsView = lazy(() => import("../src/components/AuditLogsView").then(module => ({ default: module.AuditLogsView })));
+const BackupCenterView = lazy(() => import("../src/components/BackupCenterView").then(module => ({ default: module.BackupCenterView })));
+const SystemInformationView = lazy(() => import("../src/components/SystemInformationView").then(module => ({ default: module.SystemInformationView })));
+const UsersView = lazy(() => import("../src/components/UsersView").then(module => ({ default: module.UsersView })));
+const PlatformAdministrationView = lazy(() => import("../src/components/PlatformAdministrationView").then(module => ({ default: module.PlatformAdministrationView })));
+const SettingsView = lazy(() => import("../src/components/SettingsView").then(module => ({ default: module.SettingsView })));
+const FinancialApprovalView = lazy(() => import("../src/components/FinancialApprovalView").then(module => ({ default: module.FinancialApprovalView })));
 
 type TransactionFilter = "all" | "income" | "expenses" | "transfers";
 type ModalName = "transaction" | "transaction-details" | "transaction-edit" | "payable" | "payable-payment" | "payable-details" | "account" | null;
@@ -76,7 +79,7 @@ function TransferHistory({ transfers }: { transfers: AccountTransfer[] }) {
 export default function Home(){
   const {isPlatformOwner}=useAuth();
   const {workspaceMode}=useActiveChurch();
-  return isPlatformOwner&&workspaceMode==="platform"?<PlatformAdministrationView/>:<ChurchWorkspace/>;
+  return <Suspense fallback={<ViewLoadingFallback label="Loading platform administration" />}>{isPlatformOwner&&workspaceMode==="platform"?<PlatformAdministrationView/>:<ChurchWorkspace/>}</Suspense>;
 }
 
 function ChurchWorkspace() {
@@ -173,6 +176,7 @@ function ChurchWorkspace() {
       {view === "accounts" && !canManageAccounts && <ReadOnlyNotice message={`${activeRole||"Your role"} can review account balances, but only Church Admin and Treasurer accounts can manage accounts.`} />}
 
       <PageTransition key={view} pageKey={view}>
+      <Suspense fallback={<ViewLoadingFallback label={`Loading ${headings[view][0]}`} />}>
       {view === "engagement" && activeChurch && <EngagementDashboard churchId={activeChurch.id} />}
       {view === "dashboard" && activeChurch&&<DashboardView
         churchId={activeChurch.id}
@@ -276,6 +280,7 @@ function ChurchWorkspace() {
    userId={profile.id}
  />
 }
+      </Suspense>
       </PageTransition>
     </section>
     {modal === "transaction" && canWriteFinance && <Modal title={transactionType === "Income" ? "Record income" : transactionType === "Expense" ? "Record expense" : "Transfer between accounts"} onClose={closeModal}><TransactionForm data={data} initialType={transactionType} saving={saving} onSubmit={save} /></Modal>}

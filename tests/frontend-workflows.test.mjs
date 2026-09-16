@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import { assertLazyViewImport } from "./helpers/lazy-views.mjs";
 import { assertAdminNavigation, assertNavigationWiring } from "./helpers/navigation.mjs";
 import { getNavigationItems, getViewHeadings, navigationSections, navigationSectionByView } from "../src/navigation/viewRegistry.ts";
 
@@ -26,7 +27,7 @@ test("financial navigation and entry actions are restored", () => {
     ["users", "audit", "backup", "system", "settings"],
   ]);
   assert.match(page, /view\s*===\s*"expenses"\s*&&\s*activeChurch\s*&&\s*profile\s*&&\s*<ExpensesView\s+churchId\s*=\s*\{\s*activeChurch\.id\s*\}\s+userId\s*=\s*\{\s*profile\.id\s*\}\s*\/>/);
-  assert.match(page, /import\s*\{\s*BudgetView\s*\}\s*from\s*"\.\.\/src\/components\/budgets\/BudgetView"/);
+  assertLazyViewImport(page, "BudgetView", "../src/components/budgets/BudgetView");
   assert.match(page, /view\s*===\s*"budgets"\s*&&\s*activeChurch\s*&&\s*<BudgetView\s+churchId=\{activeChurch\.id\}\s*\/>/);
   assert.deepEqual(nav.find(([key]) => key === "budgets"), ["budgets", "reports", "Budget Planning"]);
   assert.match(page, /New Transaction/);
@@ -231,7 +232,7 @@ test("Families is registered in Ministry and rendered with the active church", (
   const page = read("app/page.tsx");
   assert.equal(navigationSectionByView.families, "Ministry");
   assert.equal(getViewHeadings(null).families[0], "Families");
-  assert.match(page, /import\s*\{\s*FamilyView\s*\}\s*from\s*"\.\.\/src\/components\/families\/FamilyView"/);
+  assertLazyViewImport(page, "FamilyView", "../src/components/families/FamilyView");
   assert.match(page, /view\s*===\s*"families"\s*&&\s*activeChurch\s*&&\s*<FamilyView\s+churchId=\{activeChurch\.id\}\s*\/>/);
 });
 
@@ -240,7 +241,7 @@ test("Attendance is registered in Ministry and rendered with the active church",
   const page = read("app/page.tsx");
   assert.equal(navigationSectionByView.attendance, "Ministry");
   assert.equal(getViewHeadings(null).attendance[0], "Attendance");
-  assert.match(page, /import\s*\{\s*AttendanceView\s*\}\s*from\s*"\.\.\/src\/components\/attendance\/AttendanceView"/);
+  assertLazyViewImport(page, "AttendanceView", "../src/components/attendance/AttendanceView");
   assert.match(page, /view\s*===\s*"attendance"\s*&&\s*activeChurch\s*&&\s*<AttendanceView\s+churchId=\{activeChurch\.id\}\s*\/>/);
 });
 
@@ -249,7 +250,7 @@ test("Events is registered in Ministry and rendered with the active church", () 
   const page = read("app/page.tsx");
   assert.equal(navigationSectionByView.events, "Ministry");
   assert.equal(getViewHeadings(null).events[0], "Events");
-  assert.match(page, /import\s*\{\s*EventView\s*\}\s*from\s*"\.\.\/src\/components\/events\/EventView"/);
+  assertLazyViewImport(page, "EventView", "../src/components/events/EventView");
   assert.match(page, /view\s*===\s*"events"\s*&&\s*activeChurch\s*&&\s*<EventView\s+churchId=\{activeChurch\.id\}\s*\/>/);
 });
 
@@ -258,7 +259,7 @@ test("Announcements is registered in Ministry and rendered with the active churc
   const page = read("app/page.tsx");
   assert.equal(navigationSectionByView.announcements, "Ministry");
   assert.equal(getViewHeadings(null).announcements[0], "Announcements");
-  assert.match(page, /import\s*\{\s*AnnouncementView\s*\}\s*from\s*"\.\.\/src\/components\/announcements\/AnnouncementView"/);
+  assertLazyViewImport(page, "AnnouncementView", "../src/components/announcements/AnnouncementView");
   assert.match(page, /view\s*===\s*"announcements"\s*&&\s*activeChurch\s*&&\s*<AnnouncementView\s+churchId=\{activeChurch\.id\}\s*\/>/);
 });
 
@@ -272,6 +273,6 @@ test("Engagement is registered in Overview and rendered with the active church",
     assert.deepEqual(nav.filter(([key]) => key === "engagement"), [["engagement", "users", "Engagement"]]);
     assert.deepEqual(nav.find(([key]) => key === "dashboard"), ["dashboard", "dashboard", "Dashboard"]);
   }
-  assert.match(page, /import\s*\{\s*EngagementDashboard\s*\}\s*from\s*"\.\.\/src\/components\/engagement\/EngagementDashboard"/);
+  assertLazyViewImport(page, "EngagementDashboard", "../src/components/engagement/EngagementDashboard");
   assert.match(page, /view\s*===\s*"engagement"\s*&&\s*activeChurch\s*&&\s*<EngagementDashboard\s+churchId=\{activeChurch\.id\}\s*\/>/);
 });
