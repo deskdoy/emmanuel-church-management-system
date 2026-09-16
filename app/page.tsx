@@ -8,6 +8,7 @@ import { AuditLogsView } from "../src/components/AuditLogsView";
 import { BackupCenterView } from "../src/components/BackupCenterView";
 import { BudgetView } from "../src/components/budgets/BudgetView";
 import { DashboardView } from "../src/components/DashboardView";
+import { EngagementDashboard } from "../src/components/engagement/EngagementDashboard";
 import { ProjectsView } from "../src/components/ProjectsView";
 import { ReportsView } from "../src/components/ReportsView";
 import { SettingsView } from "../src/components/SettingsView";
@@ -172,6 +173,7 @@ function ChurchWorkspace() {
       {view === "accounts" && !canManageAccounts && <ReadOnlyNotice message={`${activeRole||"Your role"} can review account balances, but only Church Admin and Treasurer accounts can manage accounts.`} />}
 
       <PageTransition key={view} pageKey={view}>
+      {view === "engagement" && activeChurch && <EngagementDashboard churchId={activeChurch.id} />}
       {view === "dashboard" && activeChurch&&<DashboardView
         churchId={activeChurch.id}
         data={data}

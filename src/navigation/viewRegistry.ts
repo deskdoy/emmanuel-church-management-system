@@ -3,6 +3,7 @@ import type { UserProfile } from "../types";
 
 export type View =
   | "dashboard"
+  | "engagement"
   | "transactions"
   | "offerings"
   | "donations"
@@ -31,6 +32,7 @@ export type NavigationItem = [View, IconName, string];
 export const navigationSections = ["Overview", "Finance", "Ministry", "Administration"] as const;
 export const navigationSectionByView: Record<View, typeof navigationSections[number]> = {
   dashboard: "Overview",
+  engagement: "Overview",
   transactions: "Finance",
   offerings: "Finance",
   donations: "Finance",
@@ -64,6 +66,7 @@ export function getViewHeadings(
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   return {
     dashboard: [`${greeting}, ${firstName}.`, "Welcome to your Faithful Steward financial stewardship workspace."],
+    engagement: ["Engagement", "Review members, families, attendance, and current church activity."],
     transactions: ["Transactions", "Record and review money in, money out, and transfers."],
     offerings: ["Offerings", "Record worship offerings and church collections."],
     donations: ["Donations", "Record member and special donations."],
@@ -95,6 +98,7 @@ export function getNavigationItems({ isChurchAdmin, canApproveFinance }: {
 }): NavigationItem[] {
   const navItems: NavigationItem[] = [
     ["dashboard", "dashboard", "Dashboard"],
+    ["engagement", "users", "Engagement"],
     ["transactions", "transactions", "Transactions"],
     ["offerings", "transactions", "Offerings"],
     ["donations", "transactions", "Donations"],

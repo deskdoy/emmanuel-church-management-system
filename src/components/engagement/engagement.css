@@ -1,0 +1,8 @@
+.engagement-dashboard { display: grid; gap: 18px; min-width: 0; }
+.engagement-dashboard .panel-head { flex-wrap: wrap; gap: 12px; }
+.engagement-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 14px; }
+.engagement-metric { min-width: 0; overflow-wrap: anywhere; }
+.engagement-metric .metric-label { margin: 0; }
+.engagement-attendance { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; }
+.engagement-attendance dt { color: var(--muted); font-size: 12px; }
+.engagement-attendance dd { margin: 8px 0 0; font-size: 22px; font-weight: 600; }
